@@ -67,13 +67,17 @@ Le script `setup_database.sh` configure automatiquement PostgreSQL avec vos iden
 
 ### 🐳 Option 2 : Avec Docker (Recommandé)
 
-**⚠️ Note importante:** Si vous rencontrez l'erreur "relation already exists", c'est que la base de données contient déjà des tables. Solution:
+**⚠️ Note importante:** Si vous rencontrez l'erreur "relation already exists" ou "ix_categories_code already exists", c'est que la base de données contient déjà des tables ou des index d'une migration précédente. Solution:
 
 ```bash
-# Supprimer les volumes Docker et redémarrer proprement
+# Arrêter et supprimer complètement les volumes Docker
 docker-compose down -v
+
+# Redémarrer proprement (la migration se ré-exécutera)
 docker-compose up -d
 ```
+
+La migration créera automatiquement toutes les tables et index nécessaires lors du premier démarrage.
 
 **Démarrage normal:**
 ```bash

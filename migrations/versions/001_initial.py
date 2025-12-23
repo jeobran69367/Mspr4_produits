@@ -62,10 +62,8 @@ def upgrade():
     )
     
     # Create indexes for better query performance
-    op.create_index('ix_categories_code', 'categories', ['code'], unique=False)
-    op.create_index('ix_products_sku', 'products', ['sku'], unique=False)
+    # Note: Unique columns (code, sku) already have automatic indexes from unique constraint
     op.create_index('ix_products_categorie_id', 'products', ['categorie_id'], unique=False)
-    op.create_index('ix_stock_produit_id', 'stock', ['produit_id'], unique=False)
 
 
 def downgrade():
