@@ -51,9 +51,30 @@ brew services start postgresql@15
 **Windows:**
 Téléchargez depuis: https://www.postgresql.org/download/windows/
 
-### Créer la base de données
+### Configuration automatique de la base de données
+
+**Utilisez le script de configuration (recommandé):**
+```bash
+chmod +x setup_database.sh
+./setup_database.sh
+```
+
+Ce script va automatiquement:
+- ✅ Détecter votre configuration PostgreSQL
+- ✅ Créer la base de données 'produits_db'
+- ✅ Configurer le fichier .env avec les bons identifiants
+
+### Ou créer manuellement
 
 ```bash
+createdb produits_db
+```
+
+**En cas d'erreur "role does not exist":**
+```bash
+# Créer l'utilisateur PostgreSQL
+createuser -s $(whoami)
+# Puis créer la base
 createdb produits_db
 ```
 

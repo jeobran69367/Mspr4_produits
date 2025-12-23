@@ -32,11 +32,70 @@ echo "📥 Installation des dépendances..."
 pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
-# Copier .env si nécessaire
+# Copier .env si nécessaire et le configurer
 if [ ! -f ".env" ]; then
     echo "📝 Copie du fichier .env.template vers .env..."
     cp .env.template .env
-    echo "⚠️  IMPORTANT: Modifiez le fichier .env avec vos configurations"
+    
+    # Détecter le nom d'utilisateur système pour PostgreSQL
+    SYSTEM_USER=$(whoami)
+    echo "🔧 Configuration automatique de PostgreSQL..."
+    echo "   Utilisateur système détecté: $SYSTEM_USER"
+    
+    # Mettre à jour DATABASE_URL avec le nom d'utilisateur système
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        sed -i '' "s|DATABASE_URL=postgresql://localhost:5432/produits_db|DATABASE_URL=postgresql://$SYSTEM_USER@localhost:5432/produits_db|g" .env
+    else
+        # Linux
+        sed -i "s|DATABASE_URL=postgresql://localhost:5432/produits_db|DATABASE_URL=postgresql://$SYSTEM_USER@localhost:5432/produits_db|g" .env
+    fi
+    
+    echo "✅ DATABASE_URL configuré avec l'utilisateur: $SYSTEM_USER"
+    echo "⚠️  Si cela ne fonctionne pas, modifiez manuellement DATABASE_URL dans .env"
+fi
+
+# Vérifier PostgreSQL
+echo ""
+echo "🔍 Vérification de PostgreSQL..."
+if command -v psql &> /dev/null; then
+    echo "✅ PostgreSQL est installé"
+    
+    # Tester la connexion
+    SYSTEM_USER=$(whoami)
+    DB_NAME="produits_db"
+    
+    if psql -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw "$DB_NAME"; then
+        echo "✅ La base de données '$DB_NAME' existe déjà"
+    else
+        echo "⚠️  La base de données '$DB_NAME' n'existe pas"
+        echo ""
+        read -p "Voulez-vous créer la base de données maintenant? (o/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Oo]$ ]]; then
+            if createdb "$DB_NAME" 2>/dev/null; then
+                echo "✅ Base de données '$DB_NAME' créée avec succès"
+            else
+                echo "❌ Erreur lors de la création de la base de données"
+                echo "   Essayez manuellement: createdb $DB_NAME"
+                echo "   Ou avec un utilisateur spécifique: createdb -U postgres $DB_NAME"
+                exit 1
+            fi
+        else
+            echo "⚠️  Vous devez créer la base de données manuellement:"
+            echo "   createdb $DB_NAME"
+            echo "   Ou: createdb -U postgres $DB_NAME"
+            exit 1
+        fi
+    fi
+else
+    echo "❌ PostgreSQL n'est pas installé ou pas dans le PATH"
+    echo ""
+    echo "Installation de PostgreSQL:"
+    echo "  macOS:   brew install postgresql@15 && brew services start postgresql@15"
+    echo "  Ubuntu:  sudo apt install postgresql postgresql-contrib"
+    echo "  Fedora:  sudo dnf install postgresql postgresql-server"
+    exit 1
 fi
 
 # Vérifier la configuration
@@ -44,27 +103,14 @@ echo ""
 echo "📋 Configuration actuelle:"
 echo "   - Fichier .env: ✅ Présent"
 if grep -q "DATABASE_URL=.*localhost" .env 2>/dev/null; then
-    echo "   - DATABASE_URL: ✅ Configuré pour localhost"
+    DB_URL=$(grep "DATABASE_URL=" .env | cut -d'=' -f2)
+    echo "   - DATABASE_URL: $DB_URL"
 else
     echo "   - DATABASE_URL: ⚠️  Vérifiez la configuration"
 fi
 
 echo ""
-echo "⚠️  PRÉREQUIS:"
-echo "   1. PostgreSQL doit être installé et en cours d'exécution"
-echo "   2. RabbitMQ doit être installé et en cours d'exécution (optionnel)"
-echo "   3. La base de données 'produits_db' doit être créée"
-echo ""
-echo "Pour créer la base de données PostgreSQL:"
-echo "   createdb produits_db"
-echo ""
-echo "Pour lancer PostgreSQL (si non démarré):"
-echo "   sudo service postgresql start    # Linux"
-echo "   brew services start postgresql   # macOS"
-echo ""
-echo "Pour lancer RabbitMQ (optionnel):"
-echo "   sudo service rabbitmq-server start  # Linux"
-echo "   brew services start rabbitmq        # macOS"
+echo "⚠️  NOTE: RabbitMQ est optionnel (l'application fonctionne sans)"
 echo ""
 
 read -p "Voulez-vous continuer le démarrage? (o/N) " -n 1 -r
@@ -77,16 +123,31 @@ fi
 # Exécuter les migrations
 echo ""
 echo "🔄 Exécution des migrations de base de données..."
-if alembic upgrade head; then
+if alembic upgrade head 2>&1; then
     echo "✅ Migrations appliquées avec succès"
 else
-    echo "⚠️  Erreur lors des migrations - vérifiez votre configuration de base de données"
-    echo "   Vous pouvez continuer mais l'application pourrait ne pas fonctionner"
-    read -p "Continuer quand même? (o/N) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Oo]$ ]]; then
-        exit 1
-    fi
+    echo ""
+    echo "❌ Erreur lors des migrations"
+    echo ""
+    echo "🔧 SOLUTIONS POSSIBLES:"
+    echo ""
+    echo "1. Vérifier que PostgreSQL est démarré:"
+    echo "   macOS:  brew services list | grep postgresql"
+    echo "   Linux:  sudo systemctl status postgresql"
+    echo ""
+    echo "2. Tester la connexion PostgreSQL:"
+    echo "   psql -d produits_db"
+    echo "   Ou: psql -U postgres -d produits_db"
+    echo ""
+    echo "3. Si l'utilisateur n'existe pas, créez-le:"
+    echo "   Sur macOS avec Homebrew: createuser -s $(whoami)"
+    echo "   Ou connectez-vous en tant que postgres: sudo -u postgres createuser -s $(whoami)"
+    echo ""
+    echo "4. Modifier DATABASE_URL dans .env avec les bons identifiants:"
+    echo "   Sans mot de passe: postgresql://$(whoami)@localhost:5432/produits_db"
+    echo "   Avec mot de passe: postgresql://username:password@localhost:5432/produits_db"
+    echo ""
+    exit 1
 fi
 
 # Lancer l'application

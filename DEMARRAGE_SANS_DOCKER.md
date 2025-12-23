@@ -189,6 +189,69 @@ curl http://localhost:8000/api/v1/categories/
 
 ## 🔧 Dépannage
 
+### Erreur: "role does not exist" (PostgreSQL)
+
+**Symptôme:**
+```
+psycopg2.OperationalError: FATAL: role "user" does not exist
+```
+
+**Cause:** Les identifiants par défaut dans `.env` ne correspondent pas à votre configuration PostgreSQL.
+
+**Solution:**
+
+**Option 1: Utiliser le script de configuration automatique**
+```bash
+./setup_database.sh
+```
+Ce script va:
+- Détecter votre nom d'utilisateur système
+- Créer la base de données si nécessaire
+- Configurer automatiquement le fichier .env
+
+**Option 2: Configuration manuelle**
+
+1. **Identifier votre utilisateur PostgreSQL:**
+   ```bash
+   whoami  # Affiche votre nom d'utilisateur système
+   ```
+
+2. **Modifier le fichier .env:**
+   ```bash
+   # Sans mot de passe (recommandé pour développement local)
+   DATABASE_URL=postgresql://votre_username@localhost:5432/produits_db
+   
+   # Exemples:
+   # DATABASE_URL=postgresql://jeobrankombou@localhost:5432/produits_db
+   # DATABASE_URL=postgresql://postgres@localhost:5432/produits_db
+   ```
+
+3. **Créer l'utilisateur PostgreSQL si nécessaire:**
+   ```bash
+   # Sur macOS avec Homebrew
+   createuser -s $(whoami)
+   
+   # Sur Linux
+   sudo -u postgres createuser -s $(whoami)
+   ```
+
+4. **Créer la base de données:**
+   ```bash
+   createdb produits_db
+   ```
+
+**Option 3: Utiliser l'utilisateur postgres par défaut**
+
+Modifiez `.env`:
+```bash
+DATABASE_URL=postgresql://postgres@localhost:5432/produits_db
+```
+
+Puis créez la base:
+```bash
+sudo -u postgres createdb produits_db
+```
+
 ### Erreur: "Connection refused" pour PostgreSQL
 
 ```bash

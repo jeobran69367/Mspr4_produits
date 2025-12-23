@@ -39,6 +39,11 @@ Microservice de gestion du catalogue de produits café pour PayeTonKawa, dévelo
 
 **Linux/macOS:**
 ```bash
+# 1. Configuration de la base de données (recommandé)
+chmod +x setup_database.sh
+./setup_database.sh
+
+# 2. Démarrage de l'application
 chmod +x start_local.sh
 ./start_local.sh
 ```
@@ -54,6 +59,9 @@ start_local.bat
 - Python 3.11+
 - PostgreSQL 15+ (requis)
 - RabbitMQ 3.12+ (optionnel - l'app fonctionne sans)
+
+**⚠️ En cas d'erreur "role does not exist":**
+Le script `setup_database.sh` configure automatiquement PostgreSQL avec vos identifiants système.
 
 ---
 
