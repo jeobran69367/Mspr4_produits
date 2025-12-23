@@ -46,8 +46,6 @@ class StockService:
         Negative quantity_change = stock exit
         """
         stock = self.repository.adjust_quantity(product_id, quantity_change)
-        if stock and stock.quantite_disponible < 0:
-            raise ValueError("Stock quantity cannot be negative")
         return StockResponse.model_validate(stock) if stock else None
     
     def delete_stock(self, stock_id: UUID) -> bool:

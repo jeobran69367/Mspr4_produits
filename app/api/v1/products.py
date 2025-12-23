@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
+import logging
 
 from app.database import get_db
 from app.services.product_service import ProductService
@@ -10,6 +11,7 @@ from app.models.product import ProductStatus
 from app.events.producer import event_producer
 from app.schemas.event import EventType
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/products", tags=["products"])
 
 
@@ -72,7 +74,7 @@ async def create_product(
             )
         except Exception as e:
             # Log error but don't fail the request
-            print(f"Failed to publish event: {e}")
+            logger.error(f"Failed to publish event: {e}")
         
         return created_product
     except ValueError as e:
@@ -110,7 +112,7 @@ async def update_product(
                 }
             )
         except Exception as e:
-            print(f"Failed to publish event: {e}")
+            logger.error(f"Failed to publish event: {e}")
         
         return updated_product
     except ValueError as e:
@@ -152,6 +154,6 @@ async def delete_product(
             }
         )
     except Exception as e:
-        print(f"Failed to publish event: {e}")
+        logger.error(f"Failed to publish event: {e}")
     
     return None

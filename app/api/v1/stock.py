@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
+import logging
 
 from app.database import get_db
 from app.services.stock_service import StockService
@@ -9,6 +10,7 @@ from app.schemas.stock import StockCreate, StockUpdate, StockResponse, StockAdju
 from app.events.producer import event_producer
 from app.schemas.event import EventType
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/stock", tags=["stock"])
 
 
@@ -117,7 +119,7 @@ async def update_stock(
                 }
             )
     except Exception as e:
-        print(f"Failed to publish event: {e}")
+        logger.error(f"Failed to publish event: {e}")
     
     return updated_stock
 
@@ -161,7 +163,7 @@ async def adjust_stock(
                     }
                 )
         except Exception as e:
-            print(f"Failed to publish event: {e}")
+            logger.error(f"Failed to publish event: {e}")
         
         return updated_stock
     except ValueError as e:

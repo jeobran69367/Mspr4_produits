@@ -49,7 +49,12 @@ class StockRepository:
     def adjust_quantity(self, product_id: UUID, quantity_change: int) -> Optional[Stock]:
         db_stock = self.get_by_product(product_id)
         if db_stock:
-            db_stock.quantite_disponible += quantity_change
+            # Validate that stock won't go negative
+            new_quantity = db_stock.quantite_disponible + quantity_change
+            if new_quantity < 0:
+                raise ValueError("Stock quantity cannot be negative")
+            
+            db_stock.quantite_disponible = new_quantity
             
             # Update timestamps based on operation type
             if quantity_change > 0:

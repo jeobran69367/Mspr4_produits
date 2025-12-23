@@ -62,20 +62,3 @@ def sample_category():
         "description": "Café Arabica de qualité supérieure",
         "code": "ARAB"
     }
-
-
-@pytest.fixture
-def sample_product(sample_category_id):
-    """Sample product data"""
-    return {
-        "sku": "CAFE-001",
-        "nom": "Café Arabica Premium",
-        "description": "Café Arabica d'exception",
-        "categorie_id": str(sample_category_id),
-        "prix_ht": "15.99",
-        "taux_tva": "20.0",
-        "unite_mesure": "g",
-        "poids_unitaire": "250",
-        "fournisseur": "Fournisseur Test",
-        "origine": "Colombie"
-    }
