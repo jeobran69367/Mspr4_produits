@@ -5,15 +5,15 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_USER: ${POSTGRES_USER:-produits_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-produits_password}
       POSTGRES_DB: ${POSTGRES_DB:-produits_db}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-produits_user} -d ${POSTGRES_DB:-produits_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,7 +39,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-produits_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-produits_user}:${POSTGRES_PASSWORD:-produits_password}@db:5432/${POSTGRES_DB:-produits_db}
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
       DEBUG: ${DEBUG:-True}
     depends_on:

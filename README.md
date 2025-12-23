@@ -110,20 +110,46 @@ Documentation interactive : http://localhost:8000/docs
 
 ### Option 2 : Avec Docker
 
-1. **Cloner le repository**
+**Note importante:** Si vous avez déjà un fichier `.env` pour le développement local, il peut causer des conflits avec Docker.
+
+1. **Option A: Sans fichier .env (Recommandé)**
+
+Docker Compose utilisera les valeurs par défaut intégrées :
 ```bash
-git clone <repository-url>
-cd Mspr4_produits
+docker-compose up -d
 ```
 
-2. **Copier le fichier de configuration**
+Les identifiants par défaut :
+- User: `produits_user`
+- Password: `produits_password`
+- Database: `produits_db`
+
+2. **Option B: Avec fichier .env personnalisé**
+
 ```bash
-cp .env.template .env
-# Modifier les valeurs dans .env si nécessaire
+# Copier l'exemple Docker
+cp .env.docker.example .env
+
+# Modifier si nécessaire
+nano .env
+
+# Lancer
+docker-compose up -d
 ```
 
-3. **Lancer avec Docker Compose**
+3. **En cas d'erreur "database does not exist"**
+
+Si vous aviez un ancien `.env` avec des credentials invalides :
 ```bash
+# Arrêter et nettoyer les conteneurs
+docker-compose down -v
+
+# Supprimer le .env ou utiliser .env.docker.example
+rm .env
+# OU
+cp .env.docker.example .env
+
+# Relancer
 docker-compose up -d
 ```
 
