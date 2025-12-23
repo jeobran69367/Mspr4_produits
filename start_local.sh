@@ -33,27 +33,41 @@ pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
 # Copier .env si nécessaire et le configurer
+SYSTEM_USER=$(whoami)
+
 if [ ! -f ".env" ]; then
     echo "📝 Copie du fichier .env.template vers .env..."
     cp .env.template .env
-    
-    # Détecter le nom d'utilisateur système pour PostgreSQL
-    SYSTEM_USER=$(whoami)
     echo "🔧 Configuration automatique de PostgreSQL..."
     echo "   Utilisateur système détecté: $SYSTEM_USER"
-    
-    # Mettre à jour DATABASE_URL avec le nom d'utilisateur système
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
-        sed -i '' "s|DATABASE_URL=postgresql://localhost:5432/produits_db|DATABASE_URL=postgresql://$SYSTEM_USER@localhost:5432/produits_db|g" .env
-    else
-        # Linux
-        sed -i "s|DATABASE_URL=postgresql://localhost:5432/produits_db|DATABASE_URL=postgresql://$SYSTEM_USER@localhost:5432/produits_db|g" .env
+else
+    # Vérifier si .env contient les anciennes credentials par défaut
+    if grep -q "DATABASE_URL=.*user:password@" .env 2>/dev/null; then
+        echo "🔧 Détection d'anciennes credentials - mise à jour..."
+        echo "   Utilisateur système détecté: $SYSTEM_USER"
+    elif grep -q "DATABASE_URL=postgresql://localhost:5432" .env 2>/dev/null; then
+        echo "🔧 Configuration de DATABASE_URL..."
+        echo "   Utilisateur système détecté: $SYSTEM_USER"
     fi
-    
-    echo "✅ DATABASE_URL configuré avec l'utilisateur: $SYSTEM_USER"
-    echo "⚠️  Si cela ne fonctionne pas, modifiez manuellement DATABASE_URL dans .env"
 fi
+
+# Toujours mettre à jour DATABASE_URL avec le bon utilisateur système
+# Gère plusieurs formats possibles de DATABASE_URL
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    # Remplacer n'importe quel format postgresql://...@localhost:5432/produits_db
+    sed -i '' "s|^DATABASE_URL=postgresql://[^@]*@localhost:5432/produits_db.*|DATABASE_URL=postgresql://$SYSTEM_USER@localhost:5432/produits_db|g" .env
+    # Remplacer le format sans utilisateur
+    sed -i '' "s|^DATABASE_URL=postgresql://localhost:5432/produits_db.*|DATABASE_URL=postgresql://$SYSTEM_USER@localhost:5432/produits_db|g" .env
+else
+    # Linux
+    # Remplacer n'importe quel format postgresql://...@localhost:5432/produits_db
+    sed -i "s|^DATABASE_URL=postgresql://[^@]*@localhost:5432/produits_db.*|DATABASE_URL=postgresql://$SYSTEM_USER@localhost:5432/produits_db|g" .env
+    # Remplacer le format sans utilisateur
+    sed -i "s|^DATABASE_URL=postgresql://localhost:5432/produits_db.*|DATABASE_URL=postgresql://$SYSTEM_USER@localhost:5432/produits_db|g" .env
+fi
+
+echo "✅ DATABASE_URL configuré: postgresql://$SYSTEM_USER@localhost:5432/produits_db"
 
 # Vérifier PostgreSQL
 echo ""
@@ -103,10 +117,19 @@ echo ""
 echo "📋 Configuration actuelle:"
 echo "   - Fichier .env: ✅ Présent"
 if grep -q "DATABASE_URL=.*localhost" .env 2>/dev/null; then
-    DB_URL=$(grep "DATABASE_URL=" .env | cut -d'=' -f2)
-    echo "   - DATABASE_URL: $DB_URL"
+    DB_URL=$(grep "^DATABASE_URL=" .env | cut -d'=' -f2-)
+    echo "   - DATABASE_URL actuel: $DB_URL"
+    
+    # Double vérification: si les anciennes credentials persistent
+    if echo "$DB_URL" | grep -q "user:password"; then
+        echo ""
+        echo "❌ ERREUR: Les anciennes credentials sont toujours présentes!"
+        echo "   Cela ne devrait pas arriver. Veuillez supprimer .env et relancer:"
+        echo "   rm .env && ./start_local.sh"
+        exit 1
+    fi
 else
-    echo "   - DATABASE_URL: ⚠️  Vérifiez la configuration"
+    echo "   - DATABASE_URL: ⚠️  Non configuré"
 fi
 
 echo ""

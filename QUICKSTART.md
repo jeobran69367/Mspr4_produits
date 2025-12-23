@@ -78,6 +78,13 @@ createuser -s $(whoami)
 createdb produits_db
 ```
 
+**Si le script ne détecte pas les bons identifiants:**
+```bash
+# Supprimer le fichier .env existant et relancer
+rm .env
+./start_local.sh
+```
+
 ## RabbitMQ (Optionnel)
 
 ⚠️ **L'application fonctionne sans RabbitMQ!**
