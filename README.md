@@ -65,7 +65,54 @@ Le script `setup_database.sh` configure automatiquement PostgreSQL avec vos iden
 
 ---
 
-### Option 1 : Installation locale (Manuelle)
+### 🐳 Option 2 : Avec Docker (Recommandé)
+
+**⚠️ Note importante:** Si vous rencontrez l'erreur "relation already exists", c'est que la base de données contient déjà des tables. Solution:
+
+```bash
+# Supprimer les volumes Docker et redémarrer proprement
+docker-compose down -v
+docker-compose up -d
+```
+
+**Démarrage normal:**
+```bash
+# Démarrer tous les services (API + PostgreSQL + RabbitMQ)
+docker-compose up -d
+
+# Vérifier que tout fonctionne
+docker-compose logs api | tail -20
+```
+
+**Accès à l'API:**
+- Documentation Swagger : http://localhost:8000/docs
+- Documentation ReDoc : http://localhost:8000/redoc
+- API : http://localhost:8000
+
+**Commandes utiles:**
+```bash
+# Voir les logs
+docker-compose logs -f api
+
+# Exécuter les migrations manuellement (si nécessaire)
+docker-compose exec api alembic upgrade head
+
+# Accéder au shell PostgreSQL
+docker-compose exec db psql -U produits_user -d produits_db
+
+# Redémarrer l'API
+docker-compose restart api
+
+# Arrêter tout
+docker-compose down
+
+# Arrêter et supprimer les volumes (reset complet)
+docker-compose down -v
+```
+
+---
+
+### Option 3 : Installation locale (Manuelle)
 
 Si vous préférez configurer manuellement:
 
@@ -97,7 +144,7 @@ createdb produits_db
 alembic upgrade head
 ```
 
-6. **Lancer l'application**
+7. **Lancer l'application**
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```

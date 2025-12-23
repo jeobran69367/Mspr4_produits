@@ -24,7 +24,7 @@ def upgrade():
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
         sa.Column('nom', sa.String(100), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('code', sa.String(20), unique=True, nullable=False, index=True),
+        sa.Column('code', sa.String(20), unique=True, nullable=False),
         sa.Column('date_creation', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.Column('date_modification', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
     )
@@ -33,7 +33,7 @@ def upgrade():
     op.create_table(
         'products',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
-        sa.Column('sku', sa.String(50), unique=True, nullable=False, index=True),
+        sa.Column('sku', sa.String(50), unique=True, nullable=False),
         sa.Column('nom', sa.String(200), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('categorie_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('categories.id'), nullable=True),
@@ -61,11 +61,11 @@ def upgrade():
         sa.Column('date_derniere_modification', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
     )
     
-    # Create indexes
-    op.create_index('ix_categories_code', 'categories', ['code'])
-    op.create_index('ix_products_sku', 'products', ['sku'])
-    op.create_index('ix_products_categorie_id', 'products', ['categorie_id'])
-    op.create_index('ix_stock_produit_id', 'stock', ['produit_id'])
+    # Create indexes for better query performance
+    op.create_index('ix_categories_code', 'categories', ['code'], unique=False)
+    op.create_index('ix_products_sku', 'products', ['sku'], unique=False)
+    op.create_index('ix_products_categorie_id', 'products', ['categorie_id'], unique=False)
+    op.create_index('ix_stock_produit_id', 'stock', ['produit_id'], unique=False)
 
 
 def downgrade():
