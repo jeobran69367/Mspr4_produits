@@ -67,7 +67,10 @@ def upgrade():
 
 
 def downgrade():
-    # Drop tables in reverse order
+    # Drop indexes first
+    op.drop_index('ix_products_categorie_id', table_name='products')
+    
+    # Drop tables in reverse order (foreign keys first)
     op.drop_table('stock')
     op.drop_table('products')
     op.drop_table('categories')
