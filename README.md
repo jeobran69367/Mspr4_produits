@@ -153,6 +153,15 @@ cp .env.docker.example .env
 docker-compose up -d
 ```
 
+4. **En cas d'erreur "relation does not exist"**
+
+Si les tables de la base de données n'ont pas été créées :
+```bash
+# Les migrations s'exécutent automatiquement au démarrage
+# Mais si nécessaire, vous pouvez les relancer manuellement:
+docker-compose exec api alembic upgrade head
+```
+
 L'API sera accessible sur http://localhost:8000
 
 Documentation interactive : http://localhost:8000/docs
