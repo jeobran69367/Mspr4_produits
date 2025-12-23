@@ -1,19 +1,18 @@
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime
 
-from app.models.base import Base
+from app.models.base import Base, UUID
 
 
 class Stock(Base):
     __tablename__ = "stocks"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     
     # Relation avec produit
-    produit_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False, unique=True)
+    produit_id = Column(UUID(), ForeignKey("products.id"), nullable=False, unique=True)
     produit = relationship("Product", back_populates="stock")
     
     # Quantités

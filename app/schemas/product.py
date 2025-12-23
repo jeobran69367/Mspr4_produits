@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 from decimal import Decimal
 from datetime import datetime
 from uuid import UUID
-from typing import Optional
+from typing import Optional, Annotated
 from app.models.product import ProductStatus
 
 
@@ -11,10 +11,10 @@ class ProductBase(BaseModel):
     nom: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = None
     categorie_id: UUID
-    prix_ht: Decimal = Field(..., gt=0, decimal_places=2)
-    taux_tva: Decimal = Field(default=20.0, ge=0, le=100, decimal_places=2)
+    prix_ht: Decimal = Field(..., gt=0)
+    taux_tva: Decimal = Field(default=20.0, ge=0, le=100)
     unite_mesure: str = Field(default="g", max_length=20)
-    poids_unitaire: Optional[Decimal] = Field(None, ge=0, decimal_places=3)
+    poids_unitaire: Optional[Decimal] = Field(None, ge=0)
     fournisseur: Optional[str] = Field(None, max_length=100)
     origine: Optional[str] = Field(None, max_length=100)
     notes_qualite: Optional[str] = None
@@ -32,10 +32,10 @@ class ProductUpdate(BaseModel):
     nom: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = None
     categorie_id: Optional[UUID] = None
-    prix_ht: Optional[Decimal] = Field(None, gt=0, decimal_places=2)
-    taux_tva: Optional[Decimal] = Field(None, ge=0, le=100, decimal_places=2)
+    prix_ht: Optional[Decimal] = Field(None, gt=0)
+    taux_tva: Optional[Decimal] = Field(None, ge=0, le=100)
     unite_mesure: Optional[str] = Field(None, max_length=20)
-    poids_unitaire: Optional[Decimal] = Field(None, ge=0, decimal_places=3)
+    poids_unitaire: Optional[Decimal] = Field(None, ge=0)
     fournisseur: Optional[str] = Field(None, max_length=100)
     origine: Optional[str] = Field(None, max_length=100)
     notes_qualite: Optional[str] = None

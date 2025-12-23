@@ -1,11 +1,10 @@
 from sqlalchemy import Column, String, Numeric, Text, Enum, ForeignKey, DateTime
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from app.models.base import Base
+from app.models.base import Base, UUID
 
 
 class ProductStatus(str, PyEnum):
@@ -18,13 +17,13 @@ class ProductStatus(str, PyEnum):
 class Product(Base):
     __tablename__ = "products"
     
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     sku = Column(String(50), unique=True, nullable=False, index=True)
     nom = Column(String(200), nullable=False)
     description = Column(Text)
     
     # Relations
-    categorie_id = Column(UUID(as_uuid=True), ForeignKey("categories.id"))
+    categorie_id = Column(UUID(), ForeignKey("categories.id"))
     categorie = relationship("Category", back_populates="produits")
     
     # Prix

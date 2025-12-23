@@ -30,7 +30,7 @@ class ProductRepository:
     
     def create(self, product: ProductCreate) -> Product:
         # Calculate prix_ttc
-        prix_ttc = product.prix_ht * (1 + product.taux_tva / 100)
+        prix_ttc = Decimal(str(product.prix_ht)) * (1 + Decimal(str(product.taux_tva)) / 100)
         
         product_dict = product.model_dump()
         product_dict['prix_ttc'] = prix_ttc
