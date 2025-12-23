@@ -2,6 +2,9 @@
 
 Microservice de gestion du catalogue de produits café pour PayeTonKawa, développé avec FastAPI, PostgreSQL et RabbitMQ.
 
+> 🚀 **Démarrage sans Docker:** Si Docker ne fonctionne pas, utilisez `./start_local.sh` (Linux/macOS) ou `start_local.bat` (Windows)  
+> 📖 **Guide complet:** [DEMARRAGE_SANS_DOCKER.md](DEMARRAGE_SANS_DOCKER.md) | **Démarrage rapide:** [QUICKSTART.md](QUICKSTART.md)
+
 ## 🎯 Fonctionnalités
 
 - **Gestion des catégories** : Création et organisation des catégories de café (Arabica, Robusta, Bio, etc.)
@@ -30,36 +33,37 @@ Microservice de gestion du catalogue de produits café pour PayeTonKawa, dévelo
 
 ## 🚀 Installation et Démarrage
 
-### Option 1 : Avec Docker (Recommandé)
+### ⚡ Démarrage Rapide (SANS Docker)
 
-1. **Cloner le repository**
+**Pour démarrer rapidement sans Docker, utilisez les scripts fournis:**
+
+**Linux/macOS:**
 ```bash
-git clone <repository-url>
-cd Mspr4_produits
+chmod +x start_local.sh
+./start_local.sh
 ```
 
-2. **Copier le fichier de configuration**
-```bash
-cp .env.template .env
-# Modifier les valeurs dans .env si nécessaire
+**Windows:**
+```cmd
+start_local.bat
 ```
 
-3. **Lancer avec Docker Compose**
-```bash
-docker-compose up -d
-```
+📖 **Guide complet:** Voir [DEMARRAGE_SANS_DOCKER.md](DEMARRAGE_SANS_DOCKER.md) pour les instructions détaillées.
 
-L'API sera accessible sur http://localhost:8000
+**Prérequis:**
+- Python 3.11+
+- PostgreSQL 15+ (requis)
+- RabbitMQ 3.12+ (optionnel - l'app fonctionne sans)
 
-Documentation interactive : http://localhost:8000/docs
+---
 
-RabbitMQ Management : http://localhost:15672 (guest/guest)
+### Option 1 : Installation locale (Manuelle)
 
-### Option 2 : Installation locale
+Si vous préférez configurer manuellement:
 
 1. **Créer un environnement virtuel**
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # Sur Windows: venv\Scripts\activate
 ```
 
@@ -87,8 +91,39 @@ alembic upgrade head
 
 6. **Lancer l'application**
 ```bash
-uvicorn app.main:app --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+L'API sera accessible sur http://localhost:8000
+
+Documentation interactive : http://localhost:8000/docs
+
+---
+
+### Option 2 : Avec Docker
+
+1. **Cloner le repository**
+```bash
+git clone <repository-url>
+cd Mspr4_produits
+```
+
+2. **Copier le fichier de configuration**
+```bash
+cp .env.template .env
+# Modifier les valeurs dans .env si nécessaire
+```
+
+3. **Lancer avec Docker Compose**
+```bash
+docker-compose up -d
+```
+
+L'API sera accessible sur http://localhost:8000
+
+Documentation interactive : http://localhost:8000/docs
+
+RabbitMQ Management : http://localhost:15672 (guest/guest)
 
 ## 🧪 Tests
 
