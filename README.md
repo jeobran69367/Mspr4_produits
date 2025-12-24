@@ -67,14 +67,47 @@ Le script `setup_database.sh` configure automatiquement PostgreSQL avec vos iden
 
 ### 🐳 Option 2 : Avec Docker (Recommandé)
 
-**⚠️ Note importante:** Si vous rencontrez l'erreur "relation already exists" ou "ix_categories_code already exists", c'est que la base de données contient déjà des tables ou des index d'une migration précédente. Solution:
+**⚠️ IMPORTANT - Erreur "relation already exists":**
+
+Si vous voyez l'erreur `relation "ix_categories_code" already exists`, votre base de données contient des données d'une ancienne version de la migration.
+
+**Solution OBLIGATOIRE (3 étapes):**
 
 ```bash
-# Arrêter et supprimer complètement les volumes Docker
+# 1. Arrêter les conteneurs
+docker-compose down
+
+# 2. SUPPRIMER les volumes (efface la base de données)
 docker-compose down -v
 
-# Redémarrer proprement (la migration se ré-exécutera)
+# 3. Vérifier que les volumes sont supprimés
+docker volume ls | grep mspr4_produits
+# Si des volumes apparaissent encore, les supprimer manuellement:
+docker volume rm mspr4_produits_postgres_data
+
+# 4. Redémarrer avec une base de données propre
 docker-compose up -d
+
+# 5. Vérifier que la migration a réussi
+docker-compose logs api | grep "Running upgrade"
+# Devrait afficher: "Running upgrade  -> 001_initial"
+```
+
+**Alternative - Reset manuel de la base de données:**
+```bash
+# Connexion à la base de données
+docker-compose exec db psql -U produits_user -d produits_db
+
+# Supprimer toutes les tables
+DROP TABLE IF EXISTS stock CASCADE;
+DROP TABLE IF EXISTS products CASCADE;
+DROP TABLE IF EXISTS categories CASCADE;
+DROP TABLE IF EXISTS alembic_version CASCADE;
+\q
+
+# Redémarrer l'API pour relancer la migration
+docker-compose restart api
+docker-compose logs api | grep alembic
 ```
 
 La migration créera automatiquement toutes les tables et index nécessaires lors du premier démarrage.
