@@ -12,7 +12,7 @@ class Category(Base):
     id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     nom = Column(String(100), nullable=False, unique=True)
     description = Column(Text)
-    code = Column(String(20), unique=True, nullable=False, index=True)
+    code = Column(String(20), unique=True, nullable=False)
     
     # Métadonnées
     date_creation = Column(DateTime, default=datetime.utcnow)

@@ -18,7 +18,7 @@ class Product(Base):
     __tablename__ = "products"
     
     id = Column(UUID(), primary_key=True, default=uuid.uuid4)
-    sku = Column(String(50), unique=True, nullable=False, index=True)
+    sku = Column(String(50), unique=True, nullable=False)
     nom = Column(String(200), nullable=False)
     description = Column(Text)
     
