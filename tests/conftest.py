@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 import os
+import sys
 
 from app.main import app
 from app.models.base import Base
@@ -13,6 +14,14 @@ from app.config import settings
 # Set testing mode to skip migrations and RabbitMQ
 settings.TESTING = True
 os.environ["TESTING"] = "true"
+
+# Ensure proper cleanup on test interruption
+def pytest_sessionfinish(session, exitstatus):
+    """Clean up resources when test session finishes"""
+    try:
+        Base.metadata.drop_all(bind=engine)
+    except:
+        pass
 
 # Use in-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
