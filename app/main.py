@@ -53,25 +53,30 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting application...")
 
-    # 1️⃣ Migrations DB
-    run_migrations()
+    # 1️⃣ Migrations DB (skip during testing)
+    if not settings.TESTING:
+        run_migrations()
+    else:
+        logger.info("Skipping migrations in test mode")
 
-    # 2️⃣ RabbitMQ
-    try:
-        await event_producer.connect()
-        logger.info("RabbitMQ connection established")
-    except Exception as e:
-        logger.warning(f"Failed to connect to RabbitMQ: {e}")
+    # 2️⃣ RabbitMQ (skip during testing)
+    if not settings.TESTING:
+        try:
+            await event_producer.connect()
+            logger.info("RabbitMQ connection established")
+        except Exception as e:
+            logger.warning(f"Failed to connect to RabbitMQ: {e}")
 
     yield
 
     # Shutdown
     logger.info("Shutting down application...")
-    try:
-        await event_producer.disconnect()
-        logger.info("RabbitMQ connection closed")
-    except Exception as e:
-        logger.warning(f"Error closing RabbitMQ connection: {e}")
+    if not settings.TESTING:
+        try:
+            await event_producer.disconnect()
+            logger.info("RabbitMQ connection closed")
+        except Exception as e:
+            logger.warning(f"Error closing RabbitMQ connection: {e}")
 
 
 # ------------------------------------------------------------------------------

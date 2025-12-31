@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api/v1"
+    TESTING: bool = False
     
     # Security
     SECRET_KEY: str = "your-secret-key-change-in-production"
