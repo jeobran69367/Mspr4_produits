@@ -15,13 +15,15 @@ from app.config import settings
 settings.TESTING = True
 os.environ["TESTING"] = "true"
 
+
 # Ensure proper cleanup on test interruption
 def pytest_sessionfinish(session, exitstatus):
     """Clean up resources when test session finishes"""
     try:
         Base.metadata.drop_all(bind=engine)
-    except:
+    except Exception:
         pass
+
 
 # Use in-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -32,12 +34,14 @@ engine = create_engine(
     poolclass=StaticPool
 )
 
+
 # Enable foreign keys for SQLite
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_conn, connection_record):
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
+
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

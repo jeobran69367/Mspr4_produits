@@ -21,7 +21,7 @@ class StockRepository:
         return self.db.query(Stock).filter(Stock.produit_id == product_id).first()
     
     def get_low_stock(self) -> List[Stock]:
-        return self.db.query(Stock).filter(Stock.alerte_stock_bas == True).all()
+        return self.db.query(Stock).filter(Stock.alerte_stock_bas.is_(True)).all()
     
     def create(self, stock: StockCreate) -> Stock:
         db_stock = Stock(**stock.model_dump())

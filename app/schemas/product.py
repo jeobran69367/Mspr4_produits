@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 from decimal import Decimal
 from datetime import datetime
 from uuid import UUID
-from typing import Optional, Annotated
+from typing import Optional
 from app.models.product import ProductStatus
 
 
