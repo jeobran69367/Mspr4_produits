@@ -1,8 +1,9 @@
-from pydantic import BaseModel
 from datetime import datetime
-from uuid import UUID
-from typing import Any, Dict, Optional
 from enum import Enum
+from typing import Any, Dict, Optional
+from uuid import UUID
+
+from pydantic import BaseModel
 
 
 class EventType(str, Enum):

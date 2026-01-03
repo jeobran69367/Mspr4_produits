@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+import logging
 from typing import List, Optional
 from uuid import UUID
-import logging
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.services.product_service import ProductService
-from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
-from app.models.product import ProductStatus
 from app.events.producer import event_producer
+from app.models.product import ProductStatus
 from app.schemas.event import EventType
+from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
+from app.services.product_service import ProductService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/products", tags=["products"])

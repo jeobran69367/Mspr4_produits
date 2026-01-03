@@ -1,7 +1,8 @@
-from sqlalchemy.orm import Session
+from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
-from decimal import Decimal
+
+from sqlalchemy.orm import Session
 
 from app.models.product import Product, ProductStatus
 from app.schemas.product import ProductCreate, ProductUpdate

@@ -1,9 +1,10 @@
-from sqlalchemy import Column, String, Text, DateTime
-from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime
 
-from app.models.base import Base, UUID
+from sqlalchemy import Column, DateTime, String, Text
+from sqlalchemy.orm import relationship
+
+from app.models.base import UUID, Base
 
 
 class Category(Base):

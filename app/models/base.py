@@ -1,7 +1,8 @@
-from sqlalchemy import TypeDecorator, CHAR
+import uuid
+
+from sqlalchemy import CHAR, TypeDecorator
 from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
 from sqlalchemy.ext.declarative import declarative_base
-import uuid
 
 
 class UUID(TypeDecorator):

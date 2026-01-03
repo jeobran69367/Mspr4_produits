@@ -1,9 +1,10 @@
-from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 
+from sqlalchemy.orm import Session
+
 from app.repositories.category_repo import CategoryRepository
-from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
+from app.schemas.category import CategoryCreate, CategoryResponse, CategoryUpdate
 
 
 class CategoryService:

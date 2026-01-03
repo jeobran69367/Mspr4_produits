@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+import logging
 from typing import List
 from uuid import UUID
-import logging
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.services.stock_service import StockService
-from app.schemas.stock import StockCreate, StockUpdate, StockResponse, StockAdjustment
 from app.events.producer import event_producer
 from app.schemas.event import EventType
+from app.schemas.stock import StockAdjustment, StockCreate, StockResponse, StockUpdate
+from app.services.stock_service import StockService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/stock", tags=["stock"])

@@ -1,9 +1,10 @@
 import json
+import logging
 from datetime import datetime
 from typing import Any, Dict
+
 import aio_pika
-from aio_pika import Message, ExchangeType
-import logging
+from aio_pika import ExchangeType, Message
 
 from app.config import settings
 from app.schemas.event import Event, EventType

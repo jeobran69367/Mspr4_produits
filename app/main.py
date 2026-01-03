@@ -1,15 +1,14 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
 
 from alembic import command
 from alembic.config import Config
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import settings
 from app.api.v1 import api_router
+from app.config import settings
 from app.events.producer import event_producer
-
 
 # ------------------------------------------------------------------------------
 # Logging

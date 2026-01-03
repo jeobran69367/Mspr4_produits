@@ -1,5 +1,5 @@
-from app.events.producer import event_producer, EventProducer
-from app.events.consumer import event_consumer, EventConsumer
+from app.events.consumer import EventConsumer, event_consumer
+from app.events.producer import EventProducer, event_producer
 from app.events.schemas import Event, EventType, ProductEvent, StockEvent
 
 __all__ = [

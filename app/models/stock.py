@@ -1,9 +1,10 @@
-from sqlalchemy import Column, Integer, ForeignKey, DateTime, Boolean
-from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime
 
-from app.models.base import Base, UUID
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer
+from sqlalchemy.orm import relationship
+
+from app.models.base import UUID, Base
 
 
 class Stock(Base):

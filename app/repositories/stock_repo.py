@@ -1,7 +1,8 @@
-from sqlalchemy.orm import Session
+from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime
+
+from sqlalchemy.orm import Session
 
 from app.models.stock import Stock
 from app.schemas.stock import StockCreate, StockUpdate

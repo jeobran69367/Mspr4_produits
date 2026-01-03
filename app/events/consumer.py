@@ -1,6 +1,7 @@
 import json
 import logging
 from typing import Callable
+
 import aio_pika
 from aio_pika import ExchangeType, IncomingMessage
 

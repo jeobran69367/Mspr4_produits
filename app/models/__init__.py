@@ -1,4 +1,4 @@
-from app.models.base import Base, UUID
+from app.models.base import UUID, Base
 from app.models.category import Category
 from app.models.product import Product, ProductStatus
 from app.models.stock import Stock

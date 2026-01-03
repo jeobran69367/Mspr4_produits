@@ -1,12 +1,13 @@
-from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 
+from sqlalchemy.orm import Session
+
+from app.models.product import ProductStatus
 from app.repositories.product_repo import ProductRepository
 from app.repositories.stock_repo import StockRepository
-from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
+from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
 from app.schemas.stock import StockCreate
-from app.models.product import ProductStatus
 
 
 class ProductService:

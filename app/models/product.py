@@ -1,10 +1,11 @@
-from sqlalchemy import Column, String, Numeric, Text, Enum, ForeignKey, DateTime
-from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from app.models.base import Base, UUID
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Numeric, String, Text
+from sqlalchemy.orm import relationship
+
+from app.models.base import UUID, Base
 
 
 class ProductStatus(str, PyEnum):

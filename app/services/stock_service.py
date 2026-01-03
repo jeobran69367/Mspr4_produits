@@ -1,9 +1,10 @@
-from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
 
+from sqlalchemy.orm import Session
+
 from app.repositories.stock_repo import StockRepository
-from app.schemas.stock import StockCreate, StockUpdate, StockResponse
+from app.schemas.stock import StockCreate, StockResponse, StockUpdate
 
 
 class StockService:

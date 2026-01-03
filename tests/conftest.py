@@ -1,15 +1,16 @@
-import pytest
-from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker
-from fastapi.testclient import TestClient
-from sqlalchemy.pool import StaticPool
 import os
 import sys
 
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.config import settings
+from app.database import get_db
 from app.main import app
 from app.models.base import Base
-from app.database import get_db
-from app.config import settings
 
 # Set testing mode to skip migrations and RabbitMQ
 settings.TESTING = True
