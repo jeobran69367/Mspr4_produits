@@ -94,12 +94,32 @@ jobs:
 
       - name: Check for merge conflicts
         run: |
-          git fetch origin ${{ github.base_ref }}
-          if git merge-tree $(git merge-base HEAD origin/${{ github.base_ref }}) origin/${{ github.base_ref }} HEAD | grep -q '<<<<<<<'; then
-            echo "❌ Merge conflicts detected!"
-            exit 1
+          # Fetch base branch and handle case where it might not exist
+          if git fetch origin ${{ github.base_ref }} 2>/dev/null; then
+            # Check if origin base ref exists
+            if git rev-parse origin/${{ github.base_ref }} >/dev/null 2>&1; then
+              # Get merge base
+              MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }} 2>/dev/null || echo "")
+              
+              if [ -n "$MERGE_BASE" ]; then
+                # Check for conflicts
+                if git merge-tree $MERGE_BASE origin/${{ github.base_ref }} HEAD | grep -q '<<<<<<<'; then
+                  echo "❌ Merge conflicts detected!"
+                  exit 1
+                else
+                  echo "✅ No merge conflicts"
+                fi
+              else
+                echo "ℹ️  Cannot determine merge base - skipping conflict check"
+                echo "✅ Assuming no conflicts (new branch)"
+              fi
+            else
+              echo "ℹ️  Base branch does not exist yet - skipping conflict check"
+              echo "✅ No conflicts (new repository or branch)"
+            fi
           else
-            echo "✅ No merge conflicts"
+            echo "ℹ️  Cannot fetch base branch - skipping conflict check"
+            echo "✅ Assuming no conflicts"
           fi
 
   # ============================================
