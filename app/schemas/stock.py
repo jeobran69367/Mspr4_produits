@@ -33,6 +33,6 @@ class StockResponse(StockBase):
     date_derniere_entree: Optional[datetime] = None
     date_derniere_sortie: Optional[datetime] = None
     date_modification: datetime
-    
+
     class Config:
         from_attributes = True

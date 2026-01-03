@@ -32,10 +32,7 @@ def run_migrations():
     try:
         logger.info("Running database migrations...")
         alembic_cfg = Config("alembic.ini")
-        alembic_cfg.set_main_option(
-            "sqlalchemy.url",
-            settings.DATABASE_URL
-        )
+        alembic_cfg.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
         command.upgrade(alembic_cfg, "head")
         logger.info("Database migrations applied successfully")
     except Exception as e:

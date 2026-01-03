@@ -21,7 +21,7 @@ class ProductBase(BaseModel):
 
 
 class ProductCreate(ProductBase):
-    @field_validator('prix_ht', 'taux_tva')
+    @field_validator("prix_ht", "taux_tva")
     @classmethod
     def validate_decimal(cls, v):
         return Decimal(str(v))
@@ -48,6 +48,6 @@ class ProductResponse(ProductBase):
     statut: ProductStatus
     date_creation: datetime
     date_modification: datetime
-    
+
     class Config:
         from_attributes = True

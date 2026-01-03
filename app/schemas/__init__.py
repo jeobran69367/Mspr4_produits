@@ -4,8 +4,21 @@ from app.schemas.stock import StockBase, StockCreate, StockUpdate, StockAdjustme
 from app.schemas.event import Event, EventType, ProductEvent, StockEvent
 
 __all__ = [
-    "CategoryBase", "CategoryCreate", "CategoryUpdate", "CategoryResponse",
-    "ProductBase", "ProductCreate", "ProductUpdate", "ProductResponse",
-    "StockBase", "StockCreate", "StockUpdate", "StockAdjustment", "StockResponse",
-    "Event", "EventType", "ProductEvent", "StockEvent"
+    "CategoryBase",
+    "CategoryCreate",
+    "CategoryUpdate",
+    "CategoryResponse",
+    "ProductBase",
+    "ProductCreate",
+    "ProductUpdate",
+    "ProductResponse",
+    "StockBase",
+    "StockCreate",
+    "StockUpdate",
+    "StockAdjustment",
+    "StockResponse",
+    "Event",
+    "EventType",
+    "ProductEvent",
+    "StockEvent",
 ]

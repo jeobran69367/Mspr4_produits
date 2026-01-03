@@ -28,11 +28,7 @@ def pytest_sessionfinish(session, exitstatus):
 # Use in-memory SQLite for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool
-)
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool)
 
 
 # Enable foreign keys for SQLite
@@ -61,12 +57,13 @@ def db_session():
 @pytest.fixture(scope="function")
 def client(db_session):
     """Create a test client with database override"""
+
     def override_get_db():
         try:
             yield db_session
         finally:
             pass
-    
+
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
@@ -76,8 +73,4 @@ def client(db_session):
 @pytest.fixture
 def sample_category():
     """Sample category data"""
-    return {
-        "nom": "Arabica",
-        "description": "Café Arabica de qualité supérieure",
-        "code": "ARAB"
-    }
+    return {"nom": "Arabica", "description": "Café Arabica de qualité supérieure", "code": "ARAB"}
