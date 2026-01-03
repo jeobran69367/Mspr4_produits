@@ -2,31 +2,49 @@
 
 ## 📋 Vue d'ensemble
 
-Ce projet utilise GitHub Actions pour l'intégration et le déploiement continus avec les workflows suivants :
+Ce projet utilise GitHub Actions pour l'intégration et le déploiement continus dans **un seul workflow unifié**.
 
-### Workflows Disponibles
+### Workflow Unique
 
-1. **CI - Intégration Continue** (`.github/workflows/ci.yml`)
-2. **CD - Déploiement Continu** (`.github/workflows/cd.yml`)
-3. **PR Checks** (`.github/workflows/pr-checks.yml`)
+**CI/CD - API Produits** (`.github/workflows/ci-api-produits.yml`)
+
+Ce workflow consolidé gère :
+- ✅ Validation des Pull Requests (format titre, taille, conflits)
+- 🔍 Analyse de code (lint, formatage, qualité)
+- 🧪 Tests unitaires et couverture (>40%)
+- 🔒 Analyse de sécurité (Safety, Bandit, OWASP, SonarCloud)
+- 🏗️ Build et validation de l'application
+- 🔗 Tests d'intégration avec PostgreSQL
+- 🐳 Build et push d'images Docker
+- 🚀 Déploiement automatique (staging/production)
+- ⏮️ Rollback automatique en cas d'échec
 
 ---
 
-## 🔄 CI - Intégration Continue
+## 🔄 CI/CD Pipeline
 
 ### Déclencheurs
 
-Le pipeline CI se déclenche automatiquement sur :
-- Push vers les branches : `main`, `develop`, `feature/**`, `release/**`
-- Pull requests vers ces mêmes branches
+Le pipeline se déclenche automatiquement sur :
+- **Push** vers les branches : `main`, `develop`, `feature/**`, `release/**`
+- **Pull requests** vers ces mêmes branches
+- **Déclenchement manuel** (workflow_dispatch) pour choisir l'environnement de déploiement
 
-### Étapes du Pipeline CI
+### Étapes du Pipeline Consolidé
 
-#### 1. 🔍 Lint - Analyse de code
+#### Phase 1 : Validation PR (uniquement pour les Pull Requests)
+- **📝 Check PR Title** : Vérification format Conventional Commits
+- **📊 PR Size Check** : Avertissement si PR > 1000 lignes
+- **🔀 Conflict Check** : Détection automatique des conflits de merge
+
+#### Phase 2 : CI - Analyse et Tests (toujours exécutée)
+
+##### 1. 🔍 Lint - Analyse de code
 - **Flake8** : Vérification de la syntaxe Python et des erreurs de style
 - **Black** : Vérification du formatage du code
 - **isort** : Vérification de l'ordre des imports
 - **Pylint** : Analyse statique approfondie
+- **ReviewDog** : Code review automatique sur PR
 
 **Commandes locales :**
 ```bash
@@ -43,7 +61,7 @@ isort app tests
 pylint app
 ```
 
-#### 2. 🧪 Tests - Tests unitaires et couverture
+##### 2. 🧪 Tests - Tests unitaires et couverture
 - Exécution de tous les tests avec pytest
 - Génération du rapport de couverture
 - **Seuil minimum : 40% de couverture**
@@ -58,7 +76,7 @@ pytest tests/ -v --cov=app --cov-report=html --cov-report=term
 open htmlcov/index.html
 ```
 
-#### 3. 🔒 Sécurité - Scan de vulnérabilités
+##### 3. 🔒 Sécurité - Scan de vulnérabilités
 - **Safety** : Vérification des dépendances vulnérables
 - **Bandit** : Analyse de sécurité du code Python
 - **OWASP Dependency Check** : Scan des dépendances connues
@@ -76,7 +94,7 @@ bandit -r app
 cat bandit-report.json
 ```
 
-#### 4. 🏗️ Build - Construction de l'application
+##### 4. 🏗️ Build - Construction de l'application
 - Vérification que l'application peut démarrer
 - Build de l'image Docker
 - Tests de l'image construite
@@ -90,39 +108,30 @@ docker build -t mspr4-produits:test .
 docker run --rm mspr4-produits:test python -c "from app.main import app; print('OK')"
 ```
 
-#### 5. 🔗 Intégration - Tests d'intégration
+##### 5. 🔗 Intégration - Tests d'intégration
 - Lancement de PostgreSQL en service
 - Exécution des migrations Alembic
 - Tests d'intégration avec base de données réelle
 
----
+#### Phase 3 : CD - Déploiement (uniquement sur push vers main/develop)
 
-## 🚀 CD - Déploiement Continu
-
-### Déclencheurs
-
-- **Automatique** : Push vers `main` (production) ou `develop` (staging)
-- **Manuel** : Via workflow_dispatch avec choix de l'environnement
-
-### Étapes du Déploiement
-
-#### 1. 🐳 Build and Push
+##### 1. 🐳 Build and Push
 - Construction de l'image Docker multi-architecture (amd64/arm64)
 - Push vers GitHub Container Registry
 - Tagging avec version et SHA
 
-#### 2. 🚀 Deploy to Staging (develop)
+##### 2. 🚀 Deploy to Staging (develop)
 - Déploiement automatique sur l'environnement de staging
 - Exécution des migrations
 - Tests de fumée (smoke tests)
 
-#### 3. 🌟 Deploy to Production (main)
+##### 3. 🌟 Deploy to Production (main)
 - Déploiement sur l'environnement de production
 - Exécution des migrations
 - Health checks
 - Notifications
 
-#### 4. ⏮️ Rollback (en cas d'échec)
+##### 4. ⏮️ Rollback (en cas d'échec)
 - Rollback automatique si le déploiement échoue
 - Notifications de l'équipe
 

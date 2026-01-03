@@ -1,4 +1,4 @@
-name: CI - Intégration Continue
+name: CI/CD - API Produits
 
 on:
   push:
@@ -8,17 +8,103 @@ on:
       - 'feature/**'
       - 'release/**'
   pull_request:
+    types: [opened, synchronize, reopened]
     branches:
       - main
       - develop
       - 'feature/**'
       - 'release/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
 
 env:
   PYTHON_VERSION: '3.11'
   TESTING: 'true'
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: jeobran69367/mspr4-produits
 
 jobs:
+  # ============================================
+  # PR VALIDATION JOBS (only on pull_request)
+  # ============================================
+  pr-title-check:
+    name: 📝 Check PR Title
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check PR title format
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+
+  pr-size-check:
+    name: 📊 PR Size Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check PR size
+        run: |
+          ADDITIONS=$(git diff --shortstat origin/${{ github.base_ref }}...HEAD | grep -oP '\d+(?= insertion)' || echo 0)
+          DELETIONS=$(git diff --shortstat origin/${{ github.base_ref }}...HEAD | grep -oP '\d+(?= deletion)' || echo 0)
+          TOTAL=$((ADDITIONS + DELETIONS))
+          
+          echo "📊 PR Statistics:"
+          echo "  Additions: $ADDITIONS"
+          echo "  Deletions: $DELETIONS"
+          echo "  Total changes: $TOTAL"
+          
+          if [ $TOTAL -gt 1000 ]; then
+            echo "⚠️  Warning: PR is very large (>1000 lines). Consider splitting it."
+          fi
+
+  conflict-check:
+    name: 🔀 Check for merge conflicts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for merge conflicts
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          if git merge-tree $(git merge-base HEAD origin/${{ github.base_ref }}) origin/${{ github.base_ref }} HEAD | grep -q '<<<<<<<'; then
+            echo "❌ Merge conflicts detected!"
+            exit 1
+          else
+            echo "✅ No merge conflicts"
+          fi
+
+  # ============================================
+  # CI JOBS (always run)
+  # ============================================
   lint:
     name: 🔍 Analyse de code (Lint)
     runs-on: ubuntu-latest
@@ -57,6 +143,14 @@ jobs:
       - name: Lint with pylint
         run: |
           pylint app --disable=C0111,R0903,W0212 --max-line-length=120 || true
+
+      - name: Review Dog - flake8 (PR only)
+        if: github.event_name == 'pull_request'
+        uses: reviewdog/action-flake8@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review
+          fail_on_error: false
 
   test:
     name: 🧪 Tests unitaires et couverture
@@ -297,22 +391,172 @@ jobs:
         run: |
           pytest tests/ -v -m "not unit" || echo "No integration tests marked yet"
 
+  # ============================================
+  # CD JOBS (only on push to main/develop)
+  # ============================================
+  build-and-push:
+    name: 🐳 Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [lint, test, security, build, integration]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: |
+      github.event_name == 'push' && github.ref == 'refs/heads/develop' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment:
+      name: staging
+      url: https://staging-produits.payetonkawa.fr
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Staging (Railway/Render)
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          echo "Image: ${{ needs.build-and-push.outputs.image_tag }}"
+          # Add your deployment commands here
+          # Example for Railway:
+          # railway up --environment staging
+          # Example for Render:
+          # render deploy --service-id ${{ secrets.RENDER_SERVICE_ID_STAGING }}
+
+      - name: Run database migrations
+        run: |
+          echo "🔄 Running database migrations on staging..."
+          # Add migration commands specific to your staging environment
+          # Example: railway run alembic upgrade head
+
+      - name: Smoke tests
+        run: |
+          echo "🧪 Running smoke tests..."
+          sleep 10
+          curl -f https://staging-produits.payetonkawa.fr/health || exit 1
+          echo "✅ Staging deployment successful!"
+
+  deploy-production:
+    name: 🌟 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: |
+      github.event_name == 'push' && github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment:
+      name: production
+      url: https://produits.payetonkawa.fr
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Production
+        run: |
+          echo "🌟 Deploying to production environment..."
+          echo "Image: ${{ needs.build-and-push.outputs.image_tag }}"
+          # Add your production deployment commands here
+          # Example for Railway:
+          # railway up --environment production
+          # Example for Render:
+          # render deploy --service-id ${{ secrets.RENDER_SERVICE_ID_PROD }}
+
+      - name: Run database migrations
+        run: |
+          echo "🔄 Running database migrations on production..."
+          # Add migration commands specific to your production environment
+
+      - name: Health check
+        run: |
+          echo "🏥 Running health checks..."
+          sleep 15
+          curl -f https://produits.payetonkawa.fr/health || exit 1
+          echo "✅ Production deployment successful!"
+
+      - name: Notify deployment
+        run: |
+          echo "📢 Notifying team about production deployment..."
+          # Add notification logic (Slack, email, etc.)
+
+  rollback:
+    name: ⏮️ Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure() && (needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure')
+    needs: [deploy-staging, deploy-production]
+    steps:
+      - name: Rollback to previous version
+        run: |
+          echo "⚠️ Deployment failed, initiating rollback..."
+          # Add rollback commands here
+          # Example: railway rollback
+          # or redeploy previous stable version
+
+      - name: Notify rollback
+        run: |
+          echo "📢 Notifying team about rollback..."
+          # Add notification logic
+
+  # ============================================
+  # SUMMARY JOB
+  # ============================================
   summary:
-    name: ✅ CI Summary
+    name: ✅ CI/CD Summary
     runs-on: ubuntu-latest
     needs: [lint, test, security, build, integration]
     if: always()
     steps:
       - name: Check CI Results
         run: |
-          echo "🎉 CI Pipeline Complete!"
+          echo "🎉 CI/CD Pipeline Complete!"
           echo "Lint: ${{ needs.lint.result }}"
           echo "Test: ${{ needs.test.result }}"
           echo "Security: ${{ needs.security.result }}"
           echo "Build: ${{ needs.build.result }}"
           echo "Integration: ${{ needs.integration.result }}"
 
-      - name: Fail if any job failed
+      - name: Fail if any critical job failed
         if: |
           needs.lint.result == 'failure' ||
           needs.test.result == 'failure' ||
