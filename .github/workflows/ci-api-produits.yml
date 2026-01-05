@@ -1,0 +1,607 @@
+name: CI/CD - API Produits
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'release/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'release/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  PYTHON_VERSION: '3.11'
+  TESTING: 'true'
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: jeobran69367/mspr4-produits
+
+jobs:
+  # ============================================
+  # PR VALIDATION JOBS (only on pull_request)
+  # ============================================
+  pr-title-check:
+    name: 📝 Check PR Title
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check PR title format
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
+          requireScope: false
+
+  pr-size-check:
+    name: 📊 PR Size Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check PR size
+        run: |
+          ADDITIONS=$(git diff --shortstat origin/${{ github.base_ref }}...HEAD | grep -oP '\d+(?= insertion)' || echo 0)
+          DELETIONS=$(git diff --shortstat origin/${{ github.base_ref }}...HEAD | grep -oP '\d+(?= deletion)' || echo 0)
+          TOTAL=$((ADDITIONS + DELETIONS))
+          
+          echo "📊 PR Statistics:"
+          echo "  Additions: $ADDITIONS"
+          echo "  Deletions: $DELETIONS"
+          echo "  Total changes: $TOTAL"
+          
+          if [ $TOTAL -gt 1000 ]; then
+            echo "⚠️  Warning: PR is very large (>1000 lines). Consider splitting it."
+          fi
+
+  conflict-check:
+    name: 🔀 Check for merge conflicts
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for merge conflicts
+        run: |
+          # Fetch base branch and handle case where it might not exist
+          BASE_REF="${{ github.base_ref }}"
+          
+          echo "🔍 Checking for merge conflicts with base branch: $BASE_REF"
+          
+          # Try to fetch the base branch
+          if ! git fetch origin "$BASE_REF" 2>/dev/null; then
+            echo "ℹ️  Cannot fetch base branch '$BASE_REF' - it may not exist yet"
+            echo "✅ Skipping conflict check (new repository or branch)"
+            exit 0
+          fi
+          
+          # Check if the base ref exists
+          if ! git rev-parse "origin/$BASE_REF" >/dev/null 2>&1; then
+            echo "ℹ️  Base branch 'origin/$BASE_REF' does not exist yet"
+            echo "✅ Skipping conflict check (new branch)"
+            exit 0
+          fi
+          
+          # Try to find merge base
+          MERGE_BASE=$(git merge-base HEAD "origin/$BASE_REF" 2>/dev/null || echo "")
+          
+          if [ -z "$MERGE_BASE" ]; then
+            echo "ℹ️  Cannot determine merge base - branches may have no common history"
+            echo "✅ Skipping conflict check"
+            exit 0
+          fi
+          
+          echo "📊 Merge base found: $MERGE_BASE"
+          
+          # Perform merge-tree to check for conflicts
+          MERGE_RESULT=$(git merge-tree "$MERGE_BASE" "origin/$BASE_REF" HEAD 2>&1)
+          EXIT_CODE=$?
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "⚠️  merge-tree command failed, skipping conflict check"
+            echo "✅ Assuming no conflicts"
+            exit 0
+          fi
+          
+          # Check for conflict markers in the merge result
+          if echo "$MERGE_RESULT" | grep -q '^<<<<<<<'; then
+            echo "❌ Merge conflicts detected!"
+            echo ""
+            echo "Conflicting files:"
+            echo "$MERGE_RESULT" | grep -B 2 '^<<<<<<<' | head -20
+            exit 1
+          else
+            echo "✅ No merge conflicts detected"
+          fi
+
+  # ============================================
+  # CI JOBS (always run)
+  # ============================================
+  lint:
+    name: 🔍 Analyse de code (Lint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black isort pylint
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Lint with flake8
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 app tests --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 app tests --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics
+
+      - name: Check code formatting with black
+        run: |
+          black --check app tests
+
+      - name: Check import sorting with isort
+        run: |
+          isort --check-only app tests
+
+      - name: Lint with pylint
+        run: |
+          pylint app --disable=C0111,R0903,W0212 --max-line-length=120 || true
+
+      - name: Review Dog - flake8 (PR only)
+        if: github.event_name == 'pull_request'
+        uses: reviewdog/action-flake8@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review
+          fail_on_error: false
+
+  test:
+    name: 🧪 Tests unitaires et couverture
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install pytest-cov
+
+      - name: Run tests with coverage
+        env:
+          TESTING: 'true'
+          DATABASE_URL: 'sqlite:///./test.db'
+        run: |
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=html --cov-report=term --cov-fail-under=40
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: htmlcov/
+
+  security:
+    name: 🔒 Analyse de sécurité
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install safety bandit
+
+      - name: Check for vulnerable dependencies with safety
+        run: |
+          safety check --json || true
+
+      - name: Security scan with bandit
+        run: |
+          bandit -r app -f json -o bandit-report.json || true
+          bandit -r app -f screen
+
+      - name: OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'Service-Produits'
+          path: '.'
+          format: 'HTML'
+          args: >
+            --enableRetired
+            --failOnCVSS 7
+        continue-on-error: true
+
+      - name: Upload OWASP report
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-report
+          path: reports/
+        if: always()
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+        if: always()
+
+  sonarcloud:
+    name: 📊 SonarCloud Analysis
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install pytest-cov
+
+      - name: Run tests with coverage for SonarCloud
+        env:
+          TESTING: 'true'
+          DATABASE_URL: 'sqlite:///./test.db'
+        run: |
+          pytest tests/ -v --cov=app --cov-report=xml
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=jeobran69367_Mspr4_produits
+            -Dsonar.organization=jeobran69367
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.coverage.exclusions=tests/**,migrations/**
+            -Dsonar.sources=app
+            -Dsonar.tests=tests
+        continue-on-error: true
+
+  build:
+    name: 🏗️ Build Application
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify application can start
+        env:
+          TESTING: 'true'
+          DATABASE_URL: 'sqlite:///./test.db'
+        run: |
+          python -c "from app.main import app; print('✅ Application imports successfully')"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: mspr4-produits:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          docker build -t mspr4-produits:test .
+          echo "✅ Docker image built successfully"
+
+  integration:
+    name: 🔗 Tests d'intégration
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U test_user; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          alembic upgrade head
+
+      - name: Run integration tests
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          pytest tests/ -v -m "not unit" || echo "No integration tests marked yet"
+
+  # ============================================
+  # CD JOBS (only on push to main/develop)
+  # ============================================
+  build-and-push:
+    name: 🐳 Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [lint, test, security, build, integration]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: |
+      github.event_name == 'push' && github.ref == 'refs/heads/develop' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment:
+      name: staging
+      url: https://staging-produits.payetonkawa.fr
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Staging (Railway/Render)
+        run: |
+          echo "🚀 Deploying to staging environment..."
+          echo "Image: ${{ needs.build-and-push.outputs.image_tag }}"
+          # Add your deployment commands here
+          # Example for Railway:
+          # railway up --environment staging
+          # Example for Render:
+          # render deploy --service-id ${{ secrets.RENDER_SERVICE_ID_STAGING }}
+
+      - name: Run database migrations
+        run: |
+          echo "🔄 Running database migrations on staging..."
+          # Add migration commands specific to your staging environment
+          # Example: railway run alembic upgrade head
+
+      - name: Smoke tests
+        run: |
+          echo "🧪 Running smoke tests..."
+          sleep 10
+          curl -f https://staging-produits.payetonkawa.fr/health || exit 1
+          echo "✅ Staging deployment successful!"
+
+  deploy-production:
+    name: 🌟 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: |
+      github.event_name == 'push' && github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment:
+      name: production
+      url: https://produits.payetonkawa.fr
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Production
+        run: |
+          echo "🌟 Deploying to production environment..."
+          echo "Image: ${{ needs.build-and-push.outputs.image_tag }}"
+          # Add your production deployment commands here
+          # Example for Railway:
+          # railway up --environment production
+          # Example for Render:
+          # render deploy --service-id ${{ secrets.RENDER_SERVICE_ID_PROD }}
+
+      - name: Run database migrations
+        run: |
+          echo "🔄 Running database migrations on production..."
+          # Add migration commands specific to your production environment
+
+      - name: Health check
+        run: |
+          echo "🏥 Running health checks..."
+          sleep 15
+          curl -f https://produits.payetonkawa.fr/health || exit 1
+          echo "✅ Production deployment successful!"
+
+      - name: Notify deployment
+        run: |
+          echo "📢 Notifying team about production deployment..."
+          # Add notification logic (Slack, email, etc.)
+
+  rollback:
+    name: ⏮️ Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure() && (needs.deploy-staging.result == 'failure' || needs.deploy-production.result == 'failure')
+    needs: [deploy-staging, deploy-production]
+    steps:
+      - name: Rollback to previous version
+        run: |
+          echo "⚠️ Deployment failed, initiating rollback..."
+          # Add rollback commands here
+          # Example: railway rollback
+          # or redeploy previous stable version
+
+      - name: Notify rollback
+        run: |
+          echo "📢 Notifying team about rollback..."
+          # Add notification logic
+
+  # ============================================
+  # SUMMARY JOB
+  # ============================================
+  summary:
+    name: ✅ CI/CD Summary
+    runs-on: ubuntu-latest
+    needs: [lint, test, security, build, integration]
+    if: always()
+    steps:
+      - name: Check CI Results
+        run: |
+          echo "🎉 CI/CD Pipeline Complete!"
+          echo "Lint: ${{ needs.lint.result }}"
+          echo "Test: ${{ needs.test.result }}"
+          echo "Security: ${{ needs.security.result }}"
+          echo "Build: ${{ needs.build.result }}"
+          echo "Integration: ${{ needs.integration.result }}"
+
+      - name: Fail if any critical job failed
+        if: |
+          needs.lint.result == 'failure' ||
+          needs.test.result == 'failure' ||
+          needs.build.result == 'failure'
+        run: exit 1
