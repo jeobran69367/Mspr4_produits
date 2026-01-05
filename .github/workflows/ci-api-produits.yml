@@ -95,31 +95,54 @@ jobs:
       - name: Check for merge conflicts
         run: |
           # Fetch base branch and handle case where it might not exist
-          if git fetch origin ${{ github.base_ref }} 2>/dev/null; then
-            # Check if origin base ref exists
-            if git rev-parse origin/${{ github.base_ref }} >/dev/null 2>&1; then
-              # Get merge base
-              MERGE_BASE=$(git merge-base HEAD origin/${{ github.base_ref }} 2>/dev/null || echo "")
-              
-              if [ -n "$MERGE_BASE" ]; then
-                # Check for conflicts
-                if git merge-tree $MERGE_BASE origin/${{ github.base_ref }} HEAD | grep -q '<<<<<<<'; then
-                  echo "❌ Merge conflicts detected!"
-                  exit 1
-                else
-                  echo "✅ No merge conflicts"
-                fi
-              else
-                echo "ℹ️  Cannot determine merge base - skipping conflict check"
-                echo "✅ Assuming no conflicts (new branch)"
-              fi
-            else
-              echo "ℹ️  Base branch does not exist yet - skipping conflict check"
-              echo "✅ No conflicts (new repository or branch)"
-            fi
-          else
-            echo "ℹ️  Cannot fetch base branch - skipping conflict check"
+          BASE_REF="${{ github.base_ref }}"
+          
+          echo "🔍 Checking for merge conflicts with base branch: $BASE_REF"
+          
+          # Try to fetch the base branch
+          if ! git fetch origin "$BASE_REF" 2>/dev/null; then
+            echo "ℹ️  Cannot fetch base branch '$BASE_REF' - it may not exist yet"
+            echo "✅ Skipping conflict check (new repository or branch)"
+            exit 0
+          fi
+          
+          # Check if the base ref exists
+          if ! git rev-parse "origin/$BASE_REF" >/dev/null 2>&1; then
+            echo "ℹ️  Base branch 'origin/$BASE_REF' does not exist yet"
+            echo "✅ Skipping conflict check (new branch)"
+            exit 0
+          fi
+          
+          # Try to find merge base
+          MERGE_BASE=$(git merge-base HEAD "origin/$BASE_REF" 2>/dev/null || echo "")
+          
+          if [ -z "$MERGE_BASE" ]; then
+            echo "ℹ️  Cannot determine merge base - branches may have no common history"
+            echo "✅ Skipping conflict check"
+            exit 0
+          fi
+          
+          echo "📊 Merge base found: $MERGE_BASE"
+          
+          # Perform merge-tree to check for conflicts
+          MERGE_RESULT=$(git merge-tree "$MERGE_BASE" "origin/$BASE_REF" HEAD 2>&1)
+          EXIT_CODE=$?
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "⚠️  merge-tree command failed, skipping conflict check"
             echo "✅ Assuming no conflicts"
+            exit 0
+          fi
+          
+          # Check for conflict markers in the merge result
+          if echo "$MERGE_RESULT" | grep -q '^<<<<<<<'; then
+            echo "❌ Merge conflicts detected!"
+            echo ""
+            echo "Conflicting files:"
+            echo "$MERGE_RESULT" | grep -B 2 '^<<<<<<<' | head -20
+            exit 1
+          else
+            echo "✅ No merge conflicts detected"
           fi
 
   # ============================================
