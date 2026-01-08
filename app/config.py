@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -8,15 +9,26 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "produits_db"
 
-    # RabbitMQ
-    RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672/"
-    RABBITMQ_EXCHANGE: str = "payetonkawa"
-    RABBITMQ_QUEUE_PRODUCTS: str = "products_events"
+    # RabbitMQ - FOR RAILWAY PRODUCTION
+    RABBITMQ_URL: Optional[str] = None  # Laisser None pour utiliser l'URL Railway
+    RABBITMQ_PRIVATE_URL: Optional[str] = None  # URL interne Railway
+    RABBITMQ_HOST: str = "localhost"
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_USERNAME: str = "guest"
+    RABBITMQ_PASSWORD: str = "guest"
+    RABBITMQ_VHOST: str = "/"
+    
+    # Exchange and Queue names
+    RABBITMQ_EXCHANGE: str = "mspr.events"
+    RABBITMQ_QUEUE_PRODUCTS: str = "produits.queue"
+
+    # Service identification
+    SERVICE_NAME: str = "produits"
 
     # Application
     APP_NAME: str = "Service Produits - PayeTonKawa"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False  # False en production
     API_V1_PREFIX: str = "/api/v1"
     TESTING: bool = False
 
