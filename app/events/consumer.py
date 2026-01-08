@@ -20,7 +20,9 @@ class EventConsumer:
     async def connect(self):
         """Establish connection to RabbitMQ"""
         try:
-            self.connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
+            # Use the correct URL with fallback logic (PRIVATE_URL -> URL -> constructed)
+            rabbitmq_url = settings.get_rabbitmq_url()
+            self.connection = await aio_pika.connect_robust(rabbitmq_url)
             self.channel = await self.connection.channel()
             await self.channel.set_qos(prefetch_count=10)
 
