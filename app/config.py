@@ -41,5 +41,21 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = True
 
+    def get_rabbitmq_url(self) -> str:
+        """
+        Get RabbitMQ URL with proper fallback logic for Railway production.
+        Priority: RABBITMQ_PRIVATE_URL -> RABBITMQ_URL -> constructed from components
+        """
+        # 1. Priority: Railway private URL (internal network)
+        if self.RABBITMQ_PRIVATE_URL:
+            return self.RABBITMQ_PRIVATE_URL
+        
+        # 2. Fallback: Railway public URL
+        if self.RABBITMQ_URL:
+            return self.RABBITMQ_URL
+        
+        # 3. Fallback: Construct from environment variables
+        return f"amqp://{self.RABBITMQ_USERNAME}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
+
 
 settings = Settings()
