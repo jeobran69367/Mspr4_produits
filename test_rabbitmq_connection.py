@@ -7,8 +7,8 @@ import asyncio
 import os
 import sys
 
-# Add app to path
-sys.path.insert(0, '/home/runner/work/Mspr4_produits/Mspr4_produits')
+# Add app to path dynamically
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.events.producer import event_producer
 from app.events.consumer import event_consumer

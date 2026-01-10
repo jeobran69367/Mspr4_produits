@@ -56,9 +56,18 @@ class EventProducer:
         return url
 
     def _get_ssl_context(self):
-        """Get SSL context if URL uses amqps://"""
+        """
+        Get SSL context if URL uses amqps://
+        
+        Note: Railway's RabbitMQ service uses self-signed certificates,
+        so we disable certificate verification. In production with proper
+        certificates, enable verification by setting:
+        ssl_context.check_hostname = True
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+        """
         if self.rabbitmq_url and self.rabbitmq_url.startswith("amqps://"):
             ssl_context = ssl.create_default_context()
+            # Railway uses self-signed certs - disable verification
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
             return ssl_context
@@ -180,18 +189,11 @@ class EventProducer:
             
         except aio_pika.exceptions.AMQPConnectionError as e:
             logger.error(f"❌ Connection error while publishing: {e}")
-            # Try to reconnect
+            # Try to reconnect and retry once
             try:
                 await self.connect()
-                # Retry publish once
-                await self.exchange.publish(
-                    Message(
-                        body=message_body.encode(),
-                        content_type="application/json",
-                        delivery_mode=DeliveryMode.PERSISTENT,
-                    ),
-                    routing_key=routing_key
-                )
+                # Retry publish with same message and routing key
+                await self.exchange.publish(message, routing_key=routing_key)
                 logger.info(f"✅ Retry successful: {routing_key}")
             except Exception as retry_error:
                 logger.error(f"❌ Retry failed: {retry_error}")

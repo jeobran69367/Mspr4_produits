@@ -56,9 +56,18 @@ class EventConsumer:
         return url
 
     def _get_ssl_context(self):
-        """Get SSL context if URL uses amqps://"""
+        """
+        Get SSL context if URL uses amqps://
+        
+        Note: Railway's RabbitMQ service uses self-signed certificates,
+        so we disable certificate verification. In production with proper
+        certificates, enable verification by setting:
+        ssl_context.check_hostname = True
+        ssl_context.verify_mode = ssl.CERT_REQUIRED
+        """
         if self.rabbitmq_url and self.rabbitmq_url.startswith("amqps://"):
             ssl_context = ssl.create_default_context()
+            # Railway uses self-signed certs - disable verification
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
             return ssl_context
