@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     RABBITMQ_PORT: int = 5672
     RABBITMQ_USERNAME: str = "guest"
     RABBITMQ_PASSWORD: str = "guest"
+    RABBITMQ_DEFAULT_USER: Optional[str] = None  # Railway variable
+    RABBITMQ_DEFAULT_PASS: Optional[str] = None  # Railway variable
+    RABBITMQ_NODENAME: Optional[str] = None  # Railway variable (info only)
     RABBITMQ_VHOST: str = "/"
     
     # Exchange and Queue names

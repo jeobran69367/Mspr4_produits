@@ -44,8 +44,14 @@ class EventProducer:
             logger.info("Using RABBITMQ_URL")
             return url
         
-        # 3. Fallback: Construct from settings
-        url = f"amqp://{settings.RABBITMQ_USERNAME}:{settings.RABBITMQ_PASSWORD}@{settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}{settings.RABBITMQ_VHOST}"
+        # 3. Fallback: Construct from settings (Railway may use DEFAULT_USER/PASS)
+        username = os.getenv("RABBITMQ_DEFAULT_USER") or settings.RABBITMQ_USERNAME
+        password = os.getenv("RABBITMQ_DEFAULT_PASS") or settings.RABBITMQ_PASSWORD
+        host = settings.RABBITMQ_HOST
+        port = settings.RABBITMQ_PORT
+        vhost = settings.RABBITMQ_VHOST
+        
+        url = f"amqp://{username}:{password}@{host}:{port}{vhost}"
         logger.info("Using constructed URL from settings")
         return url
 
