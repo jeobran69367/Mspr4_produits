@@ -53,16 +53,26 @@ async def create_product(product: ProductCreate, db: Session = Depends(get_db)):
     try:
         created_product = service.create_product(product)
 
-        # Publish event
+        # Publish event to all services
         try:
+            event_data = {
+                "product_id": str(created_product.id),
+                "sku": created_product.sku,
+                "nom": created_product.nom,
+                "statut": created_product.statut.value,
+            }
+            
+            # Publish general event
             await event_producer.publish_event(
                 EventType.PRODUCT_CREATED,
-                {
-                    "product_id": str(created_product.id),
-                    "sku": created_product.sku,
-                    "nom": created_product.nom,
-                    "statut": created_product.statut.value,
-                },
+                event_data,
+            )
+            
+            # Publish to commandes service
+            await event_producer.publish_event(
+                EventType.PRODUCT_CREATED,
+                event_data,
+                target_service="commandes"
             )
         except Exception as e:
             # Log error but don't fail the request
@@ -82,16 +92,26 @@ async def update_product(product_id: UUID, product_update: ProductUpdate, db: Se
         if not updated_product:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product with id {product_id} not found")
 
-        # Publish event
+        # Publish event to all services
         try:
+            event_data = {
+                "product_id": str(updated_product.id),
+                "sku": updated_product.sku,
+                "nom": updated_product.nom,
+                "statut": updated_product.statut.value,
+            }
+            
+            # Publish general event
             await event_producer.publish_event(
                 EventType.PRODUCT_UPDATED,
-                {
-                    "product_id": str(updated_product.id),
-                    "sku": updated_product.sku,
-                    "nom": updated_product.nom,
-                    "statut": updated_product.statut.value,
-                },
+                event_data,
+            )
+            
+            # Publish to commandes service
+            await event_producer.publish_event(
+                EventType.PRODUCT_UPDATED,
+                event_data,
+                target_service="commandes"
             )
         except Exception as e:
             logger.error(f"Failed to publish event: {e}")
@@ -114,10 +134,28 @@ async def delete_product(product_id: UUID, db: Session = Depends(get_db)):
     if not service.delete_product(product_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Product with id {product_id} not found")
 
-    # Publish event
+    # Publish event to all services and specifically to commandes service
     try:
+        event_data = {"product_id": str(product_id), "sku": product.sku}
+        
+        # Publish general event (produits.product.deleted)
         await event_producer.publish_event(
-            EventType.PRODUCT_DELETED, {"product_id": str(product_id), "sku": product.sku}
+            EventType.PRODUCT_DELETED,
+            event_data
+        )
+        
+        # Publish to commandes service (produits.product.deleted.commandes)
+        await event_producer.publish_event(
+            EventType.PRODUCT_DELETED,
+            event_data,
+            target_service="commandes"
+        )
+        
+        # Publish to clients service if needed (produits.product.deleted.clients)
+        await event_producer.publish_event(
+            EventType.PRODUCT_DELETED,
+            event_data,
+            target_service="clients"
         )
     except Exception as e:
         logger.error(f"Failed to publish event: {e}")

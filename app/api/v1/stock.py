@@ -67,26 +67,43 @@ async def update_stock(stock_id: UUID, stock_update: StockUpdate, db: Session = 
     if not updated_stock:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Stock with id {stock_id} not found")
 
-    # Publish event
+    # Publish event to all services
     try:
+        event_data = {
+            "product_id": str(updated_stock.produit_id),
+            "quantite_disponible": updated_stock.quantite_disponible,
+            "alerte_stock_bas": updated_stock.alerte_stock_bas,
+        }
+        
+        # Publish general event
         await event_producer.publish_event(
             EventType.STOCK_UPDATED,
-            {
-                "product_id": str(updated_stock.produit_id),
-                "quantite_disponible": updated_stock.quantite_disponible,
-                "alerte_stock_bas": updated_stock.alerte_stock_bas,
-            },
+            event_data,
+        )
+        
+        # Publish to commandes service (important for order processing)
+        await event_producer.publish_event(
+            EventType.STOCK_UPDATED,
+            event_data,
+            target_service="commandes"
         )
 
         # Publish low stock alert if needed
         if updated_stock.alerte_stock_bas:
+            alert_data = {
+                "product_id": str(updated_stock.produit_id),
+                "quantite_disponible": updated_stock.quantite_disponible,
+                "quantite_minimum": updated_stock.quantite_minimum,
+            }
             await event_producer.publish_event(
                 EventType.STOCK_LOW_ALERT,
-                {
-                    "product_id": str(updated_stock.produit_id),
-                    "quantite_disponible": updated_stock.quantite_disponible,
-                    "quantite_minimum": updated_stock.quantite_minimum,
-                },
+                alert_data,
+            )
+            # Also send to commandes
+            await event_producer.publish_event(
+                EventType.STOCK_LOW_ALERT,
+                alert_data,
+                target_service="commandes"
             )
     except Exception as e:
         logger.error(f"Failed to publish event: {e}")
@@ -105,27 +122,44 @@ async def adjust_stock(product_id: UUID, adjustment: StockAdjustment, db: Sessio
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"Stock for product {product_id} not found"
             )
 
-        # Publish event
+        # Publish event to all services
         try:
+            event_data = {
+                "product_id": str(updated_stock.produit_id),
+                "quantite_disponible": updated_stock.quantite_disponible,
+                "alerte_stock_bas": updated_stock.alerte_stock_bas,
+                "adjustment": adjustment.quantite,
+            }
+            
+            # Publish general event
             await event_producer.publish_event(
                 EventType.STOCK_UPDATED,
-                {
-                    "product_id": str(updated_stock.produit_id),
-                    "quantite_disponible": updated_stock.quantite_disponible,
-                    "alerte_stock_bas": updated_stock.alerte_stock_bas,
-                    "adjustment": adjustment.quantite,
-                },
+                event_data,
+            )
+            
+            # Publish to commandes service (important for order processing)
+            await event_producer.publish_event(
+                EventType.STOCK_UPDATED,
+                event_data,
+                target_service="commandes"
             )
 
             # Publish low stock alert if needed
             if updated_stock.alerte_stock_bas:
+                alert_data = {
+                    "product_id": str(updated_stock.produit_id),
+                    "quantite_disponible": updated_stock.quantite_disponible,
+                    "quantite_minimum": updated_stock.quantite_minimum,
+                }
                 await event_producer.publish_event(
                     EventType.STOCK_LOW_ALERT,
-                    {
-                        "product_id": str(updated_stock.produit_id),
-                        "quantite_disponible": updated_stock.quantite_disponible,
-                        "quantite_minimum": updated_stock.quantite_minimum,
-                    },
+                    alert_data,
+                )
+                # Also send to commandes
+                await event_producer.publish_event(
+                    EventType.STOCK_LOW_ALERT,
+                    alert_data,
+                    target_service="commandes"
                 )
         except Exception as e:
             logger.error(f"Failed to publish event: {e}")

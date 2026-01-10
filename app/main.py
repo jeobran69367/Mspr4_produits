@@ -114,9 +114,13 @@ async def root():
 
 @app.get("/health")
 async def health_check():
+    """Health check endpoint with RabbitMQ status"""
+    rabbitmq_health = await event_producer.health_check()
+    
     return {
         "status": "healthy",
         "service": "products",
+        "rabbitmq": rabbitmq_health
     }
 
 
