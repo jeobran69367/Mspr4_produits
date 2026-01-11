@@ -23,6 +23,17 @@ class EventProducer:
         try:
             # Use the correct URL with fallback logic (PRIVATE_URL -> URL -> constructed)
             rabbitmq_url = settings.get_rabbitmq_url()
+            
+            # Log which URL is being used (mask password for security)
+            masked_url = rabbitmq_url
+            if "@" in rabbitmq_url:
+                parts = rabbitmq_url.split("@")
+                cred_part = parts[0]
+                if ":" in cred_part and "//" in cred_part:
+                    protocol_and_user = cred_part.split(":")
+                    masked_url = f"{protocol_and_user[0]}:{protocol_and_user[1]}:***@{parts[1]}"
+            logger.info(f"Connecting to RabbitMQ using URL: {masked_url}")
+            
             self.connection = await aio_pika.connect_robust(rabbitmq_url)
             self.channel = await self.connection.channel()
             self.exchange = await self.channel.declare_exchange(

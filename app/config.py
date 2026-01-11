@@ -1,5 +1,8 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -48,13 +51,16 @@ class Settings(BaseSettings):
         """
         # 1. Priority: Railway private URL (internal network)
         if self.RABBITMQ_PRIVATE_URL:
+            logger.info("Using RABBITMQ_PRIVATE_URL for connection")
             return self.RABBITMQ_PRIVATE_URL
         
         # 2. Fallback: Railway public URL
         if self.RABBITMQ_URL:
+            logger.info("Using RABBITMQ_URL for connection")
             return self.RABBITMQ_URL
         
         # 3. Fallback: Construct from environment variables
+        logger.info("Constructing RabbitMQ URL from individual components")
         return f"amqp://{self.RABBITMQ_USERNAME}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
 
 
