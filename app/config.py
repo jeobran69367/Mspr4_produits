@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 import logging
 import re
+from urllib.parse import quote_plus
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,11 @@ class Settings(BaseSettings):
         
         # 3. Fallback: Construct from environment variables
         logger.info("Constructing RabbitMQ URL from individual components")
-        return f"amqp://{self.RABBITMQ_USERNAME}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{self.RABBITMQ_VHOST}"
+        # URL-encode credentials to handle special characters safely
+        username = quote_plus(self.RABBITMQ_USERNAME)
+        password = quote_plus(self.RABBITMQ_PASSWORD)
+        vhost = quote_plus(self.RABBITMQ_VHOST) if self.RABBITMQ_VHOST != "/" else "/"
+        return f"amqp://{username}:{password}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{vhost}"
 
 
 settings = Settings()
