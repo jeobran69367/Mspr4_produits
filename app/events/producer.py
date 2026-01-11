@@ -6,7 +6,7 @@ from typing import Any, Dict
 import aio_pika
 from aio_pika import ExchangeType, Message
 
-from app.config import settings
+from app.config import settings, mask_url_password
 from app.schemas.event import Event, EventType
 
 logger = logging.getLogger(__name__)
@@ -25,14 +25,7 @@ class EventProducer:
             rabbitmq_url = settings.get_rabbitmq_url()
             
             # Log which URL is being used (mask password for security)
-            masked_url = rabbitmq_url
-            if "@" in rabbitmq_url:
-                parts = rabbitmq_url.split("@")
-                cred_part = parts[0]
-                if ":" in cred_part and "//" in cred_part:
-                    protocol_and_user = cred_part.split(":")
-                    masked_url = f"{protocol_and_user[0]}:{protocol_and_user[1]}:***@{parts[1]}"
-            logger.info(f"Connecting to RabbitMQ using URL: {masked_url}")
+            logger.info(f"Connecting to RabbitMQ using URL: {mask_url_password(rabbitmq_url)}")
             
             self.connection = await aio_pika.connect_robust(rabbitmq_url)
             self.channel = await self.connection.channel()

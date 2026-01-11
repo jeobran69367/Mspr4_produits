@@ -1,8 +1,24 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
 import logging
+import re
 
 logger = logging.getLogger(__name__)
+
+
+def mask_url_password(url: str) -> str:
+    """
+    Mask password in URL for secure logging.
+    Example: amqp://user:password@host:5672/ -> amqp://user:***@host:5672/
+    """
+    if not url:
+        return url
+    
+    # Use regex to find and replace password in URL
+    # Pattern matches: protocol://user:password@host
+    pattern = r'(://[^:]+:)[^@]+(@)'
+    masked = re.sub(pattern, r'\1***\2', url)
+    return masked
 
 
 class Settings(BaseSettings):
