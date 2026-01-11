@@ -51,17 +51,21 @@ async def lifespan(app: FastAPI):
     # 1️⃣ Migrations DB (skip during testing)
     if not settings.TESTING:
         run_migrations()
+        logger.info("✅ Migrations step completed")
     else:
         logger.info("Skipping migrations in test mode")
 
     # 2️⃣ RabbitMQ (skip during testing)
     if not settings.TESTING:
+        logger.info("🔌 Attempting RabbitMQ connection...")
         try:
             await event_producer.connect()
-            logger.info("RabbitMQ connection established")
+            logger.info("✅ RabbitMQ connection established successfully")
         except Exception as e:
-            logger.warning(f"Failed to connect to RabbitMQ: {e}")
+            logger.warning(f"⚠️ Failed to connect to RabbitMQ: {e}")
+            logger.warning("⚠️ Application will continue without RabbitMQ")
 
+    logger.info("🚀 Application startup complete - ready to accept requests")
     yield
 
     # Shutdown

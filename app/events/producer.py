@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import datetime
 from typing import Any, Dict
+import asyncio
 
 import aio_pika
 from aio_pika import ExchangeType, Message
@@ -27,12 +28,19 @@ class EventProducer:
             # Log which URL is being used (mask password for security)
             logger.info(f"Connecting to RabbitMQ using URL: {mask_url_password(rabbitmq_url)}")
             
-            self.connection = await aio_pika.connect_robust(rabbitmq_url)
+            # Add timeout to prevent hanging during startup
+            self.connection = await asyncio.wait_for(
+                aio_pika.connect_robust(rabbitmq_url),
+                timeout=10.0
+            )
             self.channel = await self.connection.channel()
             self.exchange = await self.channel.declare_exchange(
                 settings.RABBITMQ_EXCHANGE, ExchangeType.TOPIC, durable=True
             )
             logger.info("Connected to RabbitMQ")
+        except asyncio.TimeoutError:
+            logger.error("RabbitMQ connection timed out after 10 seconds")
+            raise
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
             raise
