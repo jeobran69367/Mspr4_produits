@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import api_router
 from app.config import settings
 from app.events.producer import event_producer
+from app.events.consumer import event_consumer
 
 # ------------------------------------------------------------------------------
 # Logging
@@ -51,17 +52,28 @@ async def lifespan(app: FastAPI):
     # 1️⃣ Migrations DB (skip during testing)
     if not settings.TESTING:
         run_migrations()
+        logger.info("✅ Migrations step completed")
     else:
         logger.info("Skipping migrations in test mode")
 
     # 2️⃣ RabbitMQ (skip during testing)
     if not settings.TESTING:
+        logger.info("🔌 Attempting RabbitMQ connection...")
         try:
+            # Connect producer (for publishing events)
             await event_producer.connect()
-            logger.info("RabbitMQ connection established")
+            logger.info("✅ RabbitMQ producer connected successfully")
+            
+            # Connect consumer (for consuming events and creating queue)
+            await event_consumer.connect()
+            logger.info("✅ RabbitMQ consumer connected successfully")
+            
+            logger.info("✅ RabbitMQ connection established successfully")
         except Exception as e:
-            logger.warning(f"Failed to connect to RabbitMQ: {e}")
+            logger.warning(f"⚠️ Failed to connect to RabbitMQ: {e}")
+            logger.warning("⚠️ Application will continue without RabbitMQ")
 
+    logger.info("🚀 Application startup complete - ready to accept requests")
     yield
 
     # Shutdown
@@ -69,7 +81,8 @@ async def lifespan(app: FastAPI):
     if not settings.TESTING:
         try:
             await event_producer.disconnect()
-            logger.info("RabbitMQ connection closed")
+            await event_consumer.disconnect()
+            logger.info("RabbitMQ connections closed")
         except Exception as e:
             logger.warning(f"Error closing RabbitMQ connection: {e}")
 

@@ -1,5 +1,25 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import logging
+import re
+from urllib.parse import quote_plus
+
+logger = logging.getLogger(__name__)
+
+
+def mask_url_password(url: str) -> str:
+    """
+    Mask password in URL for secure logging.
+    Example: amqp://user:password@host:5672/ -> amqp://user:***@host:5672/
+    """
+    if not url:
+        return url
+    
+    # Use regex to find and replace password in URL
+    # Pattern matches: protocol://user:password@host
+    pattern = r'(://[^:]+:)[^@]+(@)'
+    masked = re.sub(pattern, r'\1***\2', url)
+    return masked
 
 
 class Settings(BaseSettings):
@@ -21,6 +41,10 @@ class Settings(BaseSettings):
     # Exchange and Queue names
     RABBITMQ_EXCHANGE: str = "mspr.events"
     RABBITMQ_QUEUE_PRODUCTS: str = "produits.queue"
+    
+    # Queue configuration
+    RABBITMQ_QUEUE_MAX_LENGTH: int = 10000
+    RABBITMQ_QUEUE_MESSAGE_TTL: int = 86400000  # 24 hours in milliseconds
 
     # Service identification
     SERVICE_NAME: str = "produits"
@@ -40,6 +64,29 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+
+    def get_rabbitmq_url(self) -> str:
+        """
+        Get RabbitMQ URL with proper fallback logic for Railway production.
+        Priority: RABBITMQ_PRIVATE_URL -> RABBITMQ_URL -> constructed from components
+        """
+        # 1. Priority: Railway private URL (internal network)
+        if self.RABBITMQ_PRIVATE_URL:
+            logger.info("Using RABBITMQ_PRIVATE_URL for connection")
+            return self.RABBITMQ_PRIVATE_URL
+        
+        # 2. Fallback: Railway public URL
+        if self.RABBITMQ_URL:
+            logger.info("Using RABBITMQ_URL for connection")
+            return self.RABBITMQ_URL
+        
+        # 3. Fallback: Construct from environment variables
+        logger.info("Constructing RabbitMQ URL from individual components")
+        # URL-encode credentials to handle special characters safely
+        username = quote_plus(self.RABBITMQ_USERNAME)
+        password = quote_plus(self.RABBITMQ_PASSWORD)
+        vhost = quote_plus(self.RABBITMQ_VHOST) if self.RABBITMQ_VHOST != "/" else "/"
+        return f"amqp://{username}:{password}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/{vhost}"
 
 
 settings = Settings()

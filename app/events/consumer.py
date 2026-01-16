@@ -5,7 +5,7 @@ from typing import Callable
 import aio_pika
 from aio_pika import ExchangeType, IncomingMessage
 
-from app.config import settings
+from app.config import settings, mask_url_password
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,13 @@ class EventConsumer:
     async def connect(self):
         """Establish connection to RabbitMQ"""
         try:
-            self.connection = await aio_pika.connect_robust(settings.RABBITMQ_URL)
+            # Use the correct URL with fallback logic (PRIVATE_URL -> URL -> constructed)
+            rabbitmq_url = settings.get_rabbitmq_url()
+            
+            # Log which URL is being used (mask password for security)
+            logger.info(f"Consumer connecting to RabbitMQ using URL: {mask_url_password(rabbitmq_url)}")
+            
+            self.connection = await aio_pika.connect_robust(rabbitmq_url)
             self.channel = await self.connection.channel()
             await self.channel.set_qos(prefetch_count=10)
 
@@ -28,9 +34,25 @@ class EventConsumer:
                 settings.RABBITMQ_EXCHANGE, ExchangeType.TOPIC, durable=True
             )
 
-            self.queue = await self.channel.declare_queue(settings.RABBITMQ_QUEUE_PRODUCTS, durable=True)
+            # Declare queue with proper configuration
+            self.queue = await self.channel.declare_queue(
+                settings.RABBITMQ_QUEUE_PRODUCTS,
+                durable=True,
+                auto_delete=False,
+                arguments={
+                    "x-max-length": settings.RABBITMQ_QUEUE_MAX_LENGTH,
+                    "x-message-ttl": settings.RABBITMQ_QUEUE_MESSAGE_TTL,
+                }
+            )
+
+            # Bind queue to exchange with routing keys
+            await self.queue.bind(self.exchange, routing_key=f"{settings.SERVICE_NAME}.#")
+            await self.queue.bind(self.exchange, routing_key="commandes.#")
+            await self.queue.bind(self.exchange, routing_key="clients.#")
 
             logger.info("Consumer connected to RabbitMQ")
+            logger.info(f"✅ Queue '{settings.RABBITMQ_QUEUE_PRODUCTS}' configured with bindings")
+            logger.info(f"✅ Routing keys: {settings.SERVICE_NAME}.#, commandes.#, clients.#")
         except Exception as e:
             logger.error(f"Failed to connect consumer to RabbitMQ: {e}")
             raise
