@@ -40,8 +40,8 @@ class EventConsumer:
                 durable=True,
                 auto_delete=False,
                 arguments={
-                    "x-max-length": 10000,
-                    "x-message-ttl": 86400000,  # 24 hours
+                    "x-max-length": settings.RABBITMQ_QUEUE_MAX_LENGTH,
+                    "x-message-ttl": settings.RABBITMQ_QUEUE_MESSAGE_TTL,
                 }
             )
 
@@ -52,6 +52,7 @@ class EventConsumer:
 
             logger.info("Consumer connected to RabbitMQ")
             logger.info(f"✅ Queue '{settings.RABBITMQ_QUEUE_PRODUCTS}' configured with bindings")
+            logger.info(f"✅ Routing keys: {settings.SERVICE_NAME}.#, commandes.#, clients.#")
         except Exception as e:
             logger.error(f"Failed to connect consumer to RabbitMQ: {e}")
             raise

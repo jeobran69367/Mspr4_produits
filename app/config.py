@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # Exchange and Queue names
     RABBITMQ_EXCHANGE: str = "mspr.events"
     RABBITMQ_QUEUE_PRODUCTS: str = "produits.queue"
+    
+    # Queue configuration
+    RABBITMQ_QUEUE_MAX_LENGTH: int = 10000
+    RABBITMQ_QUEUE_MESSAGE_TTL: int = 86400000  # 24 hours in milliseconds
 
     # Service identification
     SERVICE_NAME: str = "produits"

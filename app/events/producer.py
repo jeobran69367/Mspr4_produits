@@ -37,47 +37,13 @@ class EventProducer:
             self.exchange = await self.channel.declare_exchange(
                 settings.RABBITMQ_EXCHANGE, ExchangeType.TOPIC, durable=True
             )
-            logger.info("Connected to RabbitMQ")
-            
-            # Setup queue with proper bindings
-            await self.setup_queue()
+            logger.info("✅ Producer connected to RabbitMQ and exchange declared")
             
         except asyncio.TimeoutError:
             logger.error("RabbitMQ connection timed out after 10 seconds")
             raise
         except Exception as e:
             logger.error(f"Failed to connect to RabbitMQ: {e}")
-            raise
-
-    async def setup_queue(self):
-        """Setup queue with proper bindings for the service"""
-        try:
-            # Declare service-specific queue
-            queue_name = settings.RABBITMQ_QUEUE_PRODUCTS
-            queue = await self.channel.declare_queue(
-                queue_name,
-                durable=True,
-                auto_delete=False,
-                arguments={
-                    "x-max-length": 10000,
-                    "x-message-ttl": 86400000,  # 24 hours
-                }
-            )
-            
-            # Bind queue to exchange with routing keys
-            # Listen to events for this service
-            await queue.bind(self.exchange, routing_key=f"{settings.SERVICE_NAME}.#")
-            logger.info(f"✅ Queue '{queue_name}' bound to routing key '{settings.SERVICE_NAME}.#'")
-            
-            # Also listen to events from other services (commandes, clients)
-            await queue.bind(self.exchange, routing_key="commandes.#")
-            await queue.bind(self.exchange, routing_key="clients.#")
-            logger.info(f"✅ Queue '{queue_name}' bound to cross-service routing keys")
-            
-            logger.info(f"✅ Queue setup complete: {queue_name}")
-            
-        except Exception as e:
-            logger.error(f"❌ Queue setup failed: {e}")
             raise
 
     async def disconnect(self):
