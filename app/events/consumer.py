@@ -34,9 +34,24 @@ class EventConsumer:
                 settings.RABBITMQ_EXCHANGE, ExchangeType.TOPIC, durable=True
             )
 
-            self.queue = await self.channel.declare_queue(settings.RABBITMQ_QUEUE_PRODUCTS, durable=True)
+            # Declare queue with proper configuration
+            self.queue = await self.channel.declare_queue(
+                settings.RABBITMQ_QUEUE_PRODUCTS,
+                durable=True,
+                auto_delete=False,
+                arguments={
+                    "x-max-length": 10000,
+                    "x-message-ttl": 86400000,  # 24 hours
+                }
+            )
+
+            # Bind queue to exchange with routing keys
+            await self.queue.bind(self.exchange, routing_key=f"{settings.SERVICE_NAME}.#")
+            await self.queue.bind(self.exchange, routing_key="commandes.#")
+            await self.queue.bind(self.exchange, routing_key="clients.#")
 
             logger.info("Consumer connected to RabbitMQ")
+            logger.info(f"✅ Queue '{settings.RABBITMQ_QUEUE_PRODUCTS}' configured with bindings")
         except Exception as e:
             logger.error(f"Failed to connect consumer to RabbitMQ: {e}")
             raise
